@@ -1,56 +1,82 @@
-# CSCC
-Hassan El Uadguiri, ..., ...
-Code + Script for Analysis
+# CSCC - Tablet Choice Analysis Project  
+**Authors**: Hassan El Uadguiri, ..., ...
 
-# About the Dataset:
-	Respondents: 1,046 individuals.
-	Choice Tasks: 13 tasks per respondent.
-	Alternatives per Task: 4 alternatives in each choice task (including one outside option).
-	Attributes: 17 attributes with varying levels.
-	Brand (7 levels), 
-	Operation system (2 levels), 
-	Display size (5 levels), 
-	Memory (5 levels), 
-	Performance (3 levels), 
-	Connections (3 Levels), 
-	Value pack (2 levels), 
-	Price (8 levels from 99 to 899 EUR), 
-	Display size small (2 small), 
-	Display resolution (2 levels), 
-	SD Slot (2 levels), 
-	Battery (2 Levels), 
-	Synchronisation to smartphone (5 Levels), 
-	Equipment (8 levels), 
-	Cash Back I ( 2 Levels), 
-	Cash Back II (3 Levels), 
-	Cash Back III (4 Levels). 
+This repository contains code and scripts for the (re-)analysis of a discrete choice experiment dataset focusing on consumer preferences for tablet computers for the course Customer Satisfaction and Consumer Choice (CSCC) by Prof. Otter. The project includes data preparation, exploratory analysis, and the estimation of a baseline multinomial logit (MNL) model, and acts as a reference in our seminar paper.
 
-Demographic Data: None available; budget constraints inferred from observed data.
-1,046×13=13,598 total choice observations
+---
 
-# Variables:
-# "RespID"                 = Identifies each unique survey respondent
-# "TaskID"                 = Identifies each unique choice task for a respondent
-# "AltID"                  = Identifies the alternative within each choice task (1 to 4)
-# "Chosen"                 = 1 if the alternative is chosen, 0 otherwise
-# "chid"                   = Combined identifier for unique choice situations (i.e.,"RespID_TaskID")
+## About the Dataset  
 
-# Attribute Variables:
-# "System_B"               = Indicates the operating system (0 = OS A, 1 = OS B)
-# "Price"                  = Purchase price in euros (e.g., 99, 299, ..., 899)
-# "Brand"                  = Indicates the brand (A, B, C, D, E, F, G)
-# "Resolution"             = Display resolution ("Standard" or "High")
-# "Memory"                 = Storage memory in GB (8GB, 16GB, 32GB, 64GB, 128GB)
-# "SD_Slot"                = Indicates whether the device has an SD slot ("With", "Without")
-# "Performance"            = Processor speed ("1 GHz", "1.6 GHz", "2.2 GHz")
-# "Battery_Run_Time"       = Battery runtime ("4-8 hours", "8-12 hours")
-# "Connections"            = Type of network connectivity ("WLAN", "WLAN + UMTS/3G", "WLAN + LTE/4G")
-# "Sync_to_Smartphone"     = Indicates synchronization to a smartphone ("No", "Yes")
-# "Value_Pack"             = Indicates availability of a value pack ("No", "Yes")
-# "Equipment"              = Additional accessories ("None", "Cover", "Keyboard", "Mouse", "Pencil", etc.)
-# "Cash_Back"              = Cashback offers ("No Cash Back", "50 EUR", "100 EUR", "150 EUR")
-# "Display_Size"           = Screen size in inches (7, 8, 10, 12, 13)
+- **Respondents**: 1,046 individuals.  
+- **Choice Tasks**: Each respondent completed 13 choice tasks.  
+- **Alternatives per Task**: Each task presented 4 alternatives (including one outside option).  
+- **Attributes**: The dataset includes 17 attributes with varying levels:  
+  - **Brand**: 7 levels (A, B, C, D, E, F, G).  
+  - **Operating System**: 2 levels (OS A, OS B).  
+  - **Display Size**: 5 levels (7, 8, 10, 12, 13 inches).  
+  - **Memory**: 5 levels (8GB, 16GB, 32GB, 64GB, 128GB).  
+  - **Performance**: 3 levels (1 GHz, 1.6 GHz, 2.2 GHz).  
+  - **Connections**: 3 levels (WLAN, WLAN + UMTS/3G, WLAN + LTE/4G).  
+  - **Value Pack**: 2 levels (Yes, No).  
+  - **Price**: 9 levels (99 EUR to 899 EUR, in intervals).  
+  - **Display Resolution**: 2 levels (Standard, High).  
+  - **SD Slot**: 2 levels (With, Without).  
+  - **Battery Runtime**: 2 levels (4-8 hours, 8-12 hours).  
+  - **Synchronization to Smartphone**: 2 levels (No, Yes).  
+  - **Equipment**: 8 levels (None, Cover, Keyboard, Mouse, Pencil, etc.).  
+  - **Cash Back**: 4 levels (No Cash Back, 50 EUR, 100 EUR, 150 EUR).  
 
+### Summary Statistics  
+- **Total Choice Observations**: \(1,046 \times 13 = 13,598\).  
+- **Demographic Data**: None available; budget constraints are inferred from observed data.
 
+---
+
+## Variables  
+
+### Key Identifiers:  
+- **`RespID`**: Identifies each unique survey respondent.  
+- **`TaskID`**: Identifies each unique choice task for a respondent.  
+- **`AltID`**: Identifies the alternative within each choice task (1 to 4).  
+- **`Chosen`**: Binary variable; 1 if the alternative was chosen, 0 otherwise.  
+- **`chid`**: Combined identifier for unique choice situations (i.e., `"RespID_TaskID"`).  
+
+### Attribute Variables:  
+- **`System_B`**: Indicates the operating system (0 = OS A, 1 = OS B).  
+- **`Price`**: Purchase price in euros (e.g., 99, 299, ..., 899).  
+- **`Brand`**: Indicates the brand (A, B, C, D, E, F, G).  
+- **`Resolution`**: Display resolution ("Standard" or "High").  
+- **`Memory`**: Storage memory in GB (8GB, 16GB, 32GB, 64GB, 128GB).  
+- **`SD_Slot`**: Indicates whether the device has an SD slot ("With", "Without").  
+- **`Performance`**: Processor speed ("1 GHz", "1.6 GHz", "2.2 GHz").  
+- **`Battery_Run_Time`**: Battery runtime ("4-8 hours", "8-12 hours").  
+- **`Connections`**: Network connectivity options ("WLAN", "WLAN + UMTS/3G", "WLAN + LTE/4G").  
+- **`Sync_to_Smartphone`**: Synchronization to a smartphone ("No", "Yes").  
+- **`Value_Pack`**: Availability of a value pack ("No", "Yes").  
+- **`Equipment`**: Additional accessories ("None", "Cover", "Keyboard", "Mouse", "Pencil", etc.).  
+- **`Cash_Back`**: Cashback offers ("No Cash Back", "50 EUR", "100 EUR", "150 EUR").  
+- **`Display_Size`**: Screen size in inches (7, 8, 10, 12, 13).  
+
+---
+
+## Objectives  
+
+1. **Data Preparation**:  
+   - Cleaning, transforming, and mapping raw dataset attributes for ease of interpretation.  
+   - Formatting data into a structure compatible with discrete choice modeling libraries (e.g., `mlogit`).  
+
+2. **Exploratory Analysis**:  
+   - Analyzing respondent behavior and choice patterns across attributes.  
+   - Examining attribute-level frequencies and visualizing trends in choices.  
+
+3. **Baseline Multinomial Logit (MNL) Model**:  
+   - Estimating the baseline MNL model to understand attribute-level utilities and preferences.  
+   - Interpreting coefficients to quantify the impact of price, brand, and other attributes on tablet choice.  
+
+---
+
+## Scripts  
+
+### Key Files:  ...
 
 
