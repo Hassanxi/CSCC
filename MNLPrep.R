@@ -9,8 +9,7 @@ load_or_install <- function(package) {
 # List of required packages
 packages <- c("readr", "dplyr", "tidyr", "ggplot2", "parallel", "sf", 
               "stringr", "data.table", "pbapply", "caret", "mlogit", 
-              "bayesm", "rstanarm", "MASS", "gridExtra", "tidyverse",
-              "stringr")
+              "bayesm", "rstanarm")
 lapply(packages, load_or_install)
 
 # STEP 1: Load the raw data
@@ -207,5 +206,34 @@ summary(mlogit_data)  # Summarize key columns
 # "Equipment"              = Additional accessories ("None", "Cover", "Keyboard", "Mouse", "Pencil", etc.)
 # "Cash_Back"              = Cashback offers ("No Cash Back", "50 EUR", "100 EUR", "150 EUR")
 # "Display_Size"           = Screen size in inches (7, 8, 10, 12, 13)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
