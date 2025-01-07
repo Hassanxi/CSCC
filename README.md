@@ -25,9 +25,8 @@ This repository contains code and scripts for the (re-)analysis of a discrete ch
   - **Synchronization to Smartphone**: 2 levels (No, Yes).  
   - **Equipment**: 8 levels (None, Cover, Keyboard, Mouse, Pencil, etc.).  
   - **Cash Back**: 4 levels (No Cash Back, 50 EUR, 100 EUR, 150 EUR).  
-
-### Summary Statistics  
-- **Total Choice Observations**: \(1,046 \times 13 = 13,598\).  
+ 
+- **Total Choice Observations**: (1,046 times 13 = 13,598).  
 - **Demographic Data**: None available; budget constraints are inferred from observed data.
 
 ---
@@ -59,23 +58,9 @@ This repository contains code and scripts for the (re-)analysis of a discrete ch
 
 ---
 
-## Objectives  
-
-1. **Data Preparation**:  
-   - Cleaning, transforming, and mapping raw dataset attributes for ease of interpretation.  
-   - Formatting data into a structure compatible with discrete choice modeling libraries (e.g., `mlogit`).  
-
-2. **Exploratory Analysis**:  
-   - Analyzing respondent behavior and choice patterns across attributes.  
-   - Examining attribute-level frequencies and visualizing trends in choices.  
-
-3. **Baseline Multinomial Logit (MNL) Model**:  
-   - Estimating the baseline MNL model to understand attribute-level utilities and preferences.  
-   - Interpreting coefficients to quantify the impact of price, brand, and other attributes on tablet choice.  
-
----
-
-## Scripts  
+## Scripts:
+- **`MNL Prep`**: Transforming the data to mlogit ready format
+- ... 
 
 ### Key Files:  ...
 
