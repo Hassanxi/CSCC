@@ -46,6 +46,5 @@ This repository contains code and scripts for the (re-)analysis of a discrete ch
 - **`MNL Prep`**: Transforming the data to mlogit ready format
 - ... 
 
-### Key Files:  ...
 
 
