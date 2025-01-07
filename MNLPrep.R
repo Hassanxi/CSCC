@@ -12,17 +12,17 @@ packages <- c("readr", "dplyr", "tidyr", "ggplot2", "parallel", "sf",
               "bayesm", "rstanarm")
 lapply(packages, load_or_install)
 
-# STEP 1: Load the raw data
+## Load the raw data
 # Load tablet attribute data for reference (not used for modeling)
-tablet_data_unf <- fread("/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/tablets.csv")
+tablet_data_unf <- fread("/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/tablets.csv") # download the .csv and replace with actual path
 
 # Optional: Inspect column names and unique levels in tablet data
 # colnames(tablet_data_unf)
 # attribute_levels <- lapply(tablet_data_unf, unique)
 # print(attribute_levels)
 
-# STEP 2: Load the respondent estimation data
-path_e_data_mod <- "/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/Estimation_Data_tab.Rdata"
+## Load the respondent estimation data
+path_e_data_mod <- "/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/Estimation_Data_tab.Rdata" # download the .Rdata and replace with actual path
 load(path_e_data_mod)
 
 # Inspect the structure of the loaded estimation data
@@ -67,10 +67,10 @@ prepare_data <- function(E_Data_mod) {
   return(combined_data)
 }
 
-# STEP 3: Prepare the combined data
+# Prepare the combined data
 combined_data <- prepare_data(E_Data_mod)
 
-# STEP 4: Data cleaning
+## Data cleaning
 # Rename columns to remove spaces, parentheses, and dashes
 combined_data <- combined_data %>%
   rename_with(~ gsub("\\s+", "_", .)) %>%
@@ -79,9 +79,9 @@ combined_data <- combined_data %>%
 
 # Create a globally unique identifier for choice situations
 combined_data <- combined_data %>%
-  mutate(chid = paste0(RespID, "_", TaskID))
+  mutate(chid = paste0(RespID, "_", TaskID)) # combines RESP with Task, because seperated IDs result in an error from mlogit
 
-# STEP 5: Transform attributes for interpretation
+## Transform attributes for interpretation
 combined_data <- combined_data %>%
   mutate(
     # Map Brand binary columns to labels, with "Outside Option" as base level
@@ -170,7 +170,7 @@ combined_data <- combined_data %>%
          -`Keyboard_+_Pencil`, -`Keyboard_+_Mouse_+_Pencil`, -`50_Cash_Back`, -`100_Cash_Back`, 
          -`150_Cash_Back`, -`8_Inches`, -`10_Inches`, -`12_Inches`, -`13_Inches`)
 
-# STEP 6: Transform data into mlogit-compatible format
+## Transform data into mlogit-compatible format
 mlogit_data <- mlogit.data(
   combined_data,
   choice = "Chosen",       # Binary choice variable
@@ -179,7 +179,7 @@ mlogit_data <- mlogit.data(
   chid.var = "chid"        # Unique choice situation identifier
 )
 
-# STEP 7: Inspect the prepared data
+## Inspect the prepared data
 str(mlogit_data)   # Check structure
 head(mlogit_data)  # Preview the first few rows
 summary(mlogit_data)  # Summarize key columns
