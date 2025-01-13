@@ -1,792 +1,644 @@
-> # Function to load or install required packages
-> load_or_install <- function(package) {
-+   if (!require(package, character.only = TRUE)) {
-+     install.packages(package, dependencies = TRUE)
-+     library(package, character.only = TRUE)
-+   }
-+ }
-> # List of required packages
-> packages <- c("readr", "dplyr", "tidyr", "ggplot2", "parallel", "sf", 
-+               "stringr", "data.table", "pbapply", "caret", "mlogit", 
-+               "bayesm", "rstanarm")
-> lapply(packages, load_or_install)
-[[1]]
-NULL
-
-[[2]]
-NULL
-
-[[3]]
-NULL
-
-[[4]]
-NULL
-
-[[5]]
-NULL
-
-[[6]]
-NULL
-
-[[7]]
-NULL
-
-[[8]]
-NULL
-
-[[9]]
-NULL
-
-[[10]]
-NULL
-
-[[11]]
-NULL
-
-[[12]]
-NULL
-
-[[13]]
-NULL
-
-> # STEP 1: Load the raw data
-> # Load tablet attribute data for reference (not used for modeling)
-> tablet_data_unf <- fread("/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/tablets.csv")
-> # STEP 2: Load the respondent estimation data
-> path_e_data_mod <- "/Users/helua1/Desktop/Master/3. Semester/CSCC/Tablet Computers/Estimation_Data_tab.Rdata"
-> load(path_e_data_mod)
-> # Inspect the structure of the loaded estimation data
-> str(E_Data_mod)
-List of 2
- $ p      : int 4
- $ lgtdata:List of 1046
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 3 4 4 2 2 1 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 3 3 3 2 3 2 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 1 1 3 1 4 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 1 1 1 1 1 3 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 1 1 2 1 1 3 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 4 4 4 2 2 4 1 2 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 2 3 3 3 2 3 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 3 3 1 4 2 4 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 1 4 2 4 4 4 4 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 3 3 1 3 3 2 1 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 3 4 1 4 4 1 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 3 2 2 1 2 1 3 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 3 1 4 4 4 2 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 1 1 3 1 1 4 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 3 2 1 1 1 3 1 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 4 4 4 4 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 1 4 3 4 4 4 4 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 2 1 1 3 3 3 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 2 3 2 3 2 3 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 1 1 4 1 3 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 3 3 2 3 3 3 3 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 1 1 2 2 3 2 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 2 3 2 2 2 1 2 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 1 3 3 3 2 1 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 3 2 3 1 1 1 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 3 2 1 1 4 1 1 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 3 3 1 3 2 3 2 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 3 4 2 1 1 4 1 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 2 1 4 4 2 3 4 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 2 1 1 3 2 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 1 3 4 1 4 1 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 4 2 2 2 2 3 1 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 2 3 1 1 1 2 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 4 2 1 1 3 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 4 4 4 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 2 3 3 3 2 3 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 2 3 3 3 2 1 1 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 3 2 3 3 4 1 2 2 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 3 1 4 4 1 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 2 3 3 2 1 1 1 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 3 3 4 4 4 1 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 3 3 1 1 3 2 2 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 3 1 3 3 1 2 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 4 4 4 4 3 4 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 1 2 1 3 1 2 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 2 1 2 1 2 2 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 3 3 1 4 4 4 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 3 1 4 2 4 4 4 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 2 1 2 2 4 1 4 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 2 3 2 3 3 2 1 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 3 2 2 1 1 2 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 4 4 3 1 4 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 4 2 1 2 3 3 1 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 4 2 3 2 2 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 4 4 4 4 1 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 2 1 4 2 2 1 4 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 4 2 4 1 3 3 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 1 1 3 1 1 1 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 4 2 4 3 1 4 3 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 1 2 2 2 1 2 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 4 4 4 2 4 4 4 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 4 4 1 1 4 4 1 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 2 2 2 2 2 3 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 3 2 3 3 3 2 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 4 4 1 3 2 1 2 4 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 3 3 2 2 1 3 1 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 3 1 2 4 4 3 4 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 1 4 4 4 2 4 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 2 2 1 3 3 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 1 2 2 3 3 3 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 2 1 1 1 3 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 1 1 3 1 3 3 3 2 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 4 4 4 4 4 1 1 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 1 2 2 1 3 1 1 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 1 2 4 3 4 1 2 1 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 2 1 2 1 1 2 4 2 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 1 4 4 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 4 4 2 4 2 4 4 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 4 3 3 2 4 4 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 1 1 2 1 1 3 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 2 2 3 3 3 3 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 1 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 3 4 3 3 3 3 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 4 3 4 2 4 4 2 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 4 4 3 4 2 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 2 1 2 4 4 2 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 1 3 1 2 2 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 1 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 1 1 3 1 2 1 1 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 1 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 2 2 2 3 3 3 1 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 2 4 4 4 1 2 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 2 1 2 3 2 1 3 3 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 1 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 1 1 1 2 2 1 2 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 4 3 4 4 3 4 3 4 ...
-  .. ..$ X: num [1:52, 1:36] 1 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 1 2 4 4 4 4 4 4 4 4 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 1 2 2 2 4 4 1 3 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 3 1 2 3 3 3 1 1 3 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 2 2 1 1 2 3 2 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 3 3 2 2 1 1 3 3 2 2 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 1 0 1 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 4 4 4 4 3 4 4 4 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 1 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  ..$ :List of 2
-  .. ..$ y: num [1:13] 2 4 4 2 1 1 3 1 4 1 ...
-  .. ..$ X: num [1:52, 1:36] 0 0 0 0 0 0 0 0 0 0 ...
-  .. .. ..- attr(*, "dimnames")=List of 2
-  .. .. .. ..$ : NULL
-  .. .. .. ..$ : chr [1:36] "Brand 1" "Brand 2" "Brand 3" "Brand 4" ...
-  .. [list output truncated]
-> # Function to prepare data for all respondents
-> prepare_data <- function(E_Data_mod) {
-+   data_list <- lapply(seq_along(E_Data_mod$lgtdata), function(i) {
-+     # Extract respondent data
-+     respondent <- E_Data_mod$lgtdata[[i]]
-+     y <- respondent$y  # Choices made
-+     X <- respondent$X  # Design matrix
-+     
-+     # Validate number of alternatives per task
-+     num_tasks <- length(y)
-+     num_alts <- nrow(X) / num_tasks
-+     if (num_alts != 4) {
-+       stop("Number of alternatives per task is not 4.")
-+     }
-+     
-+     # Create identifiers
-+     TaskID <- rep(1:num_tasks, each = num_alts)
-+     AltID  <- rep(1:num_alts, times = num_tasks)
-+     RespID <- rep(i, nrow(X))
-+     
-+     # Binary chosen indicator
-+     Chosen <- as.integer(AltID == rep(y, each = num_alts))
-+     
-+     # Combine into data.frame
-+     df <- data.frame(
-+       RespID = RespID,
-+       TaskID = TaskID,
-+       AltID  = AltID,
-+       Chosen = Chosen
-+     )
-+     df <- cbind(df, X)
-+     return(df)
-+   })
-+   
-+   combined_data <- bind_rows(data_list)
-+   return(combined_data)
-+ }
-> # Prepare the combined data
-> combined_data <- prepare_data(E_Data_mod)
-> # Data cleaning and attribute transformation
-> combined_data <- combined_data %>%
-+   rename_with(~ gsub("\\s+", "_", .)) %>%
-+   rename_with(~ gsub("\\(|\\)", "", .)) %>%
-+   rename_with(~ gsub("-", "", .)) %>%
-+   mutate(chid = paste0(RespID, "_", TaskID)) %>%
-+   mutate(
-+     Brand = case_when(
-+       Brand_1 == 1 ~ "A",
-+       Brand_2 == 1 ~ "B",
-+       Brand_3 == 1 ~ "C",
-+       Brand_4 == 1 ~ "D",
-+       Brand_5 == 1 ~ "E",
-+       Brand_6 == 1 ~ "F",
-+       Brand_7 == 1 ~ "G",
-+       TRUE ~ "Outside Option"
-+     ),
-+     Resolution = ifelse(High_Resolution_264_ppi == 1, "High", "Standard"),
-+     Memory = case_when(
-+       `16_GB` == 1 ~ "16GB",
-+       `32_GB` == 1 ~ "32GB",
-+       `64_GB` == 1 ~ "64GB",
-+       `128GB` == 1 ~ "128GB",
-+       TRUE ~ "8GB"
-+     ),
-+     SD_Slot = ifelse(Without_SDSlot == 1, "Without", "With"),
-+     Performance = case_when(
-+       `1.6_GHz` == 1 ~ "1.6 GHz",
-+       `2.2_GHz` == 1 ~ "2.2 GHz",
-+       TRUE ~ "1 GHz"
-+     ),
-+     Battery_Run_Time = ifelse(`812_h._Runtime` == 1, "8-12 hours", "4-8 hours"),
-+     Connections = case_when(
-+       `WLAN_+_UMTS/3G` == 1 ~ "WLAN + UMTS (3G)",
-+       `WLAN_+_LTE/4G` == 1 ~ "WLAN + LTE (4G)",
-+       TRUE ~ "WLAN"
-+     ),
-+     Sync_to_Smartphone = ifelse(Sphone_Synch. == 1, "Yes", "No"),
-+     Value_Pack = ifelse(Value_Pack == 1, "Yes", "No"),
-+     Equipment = case_when(
-+       Cover == 1 ~ "Cover",
-+       Keyboard == 1 ~ "Keyboard",
-+       Mouse == 1 ~ "Mouse",
-+       Pencil == 1 ~ "Pencil",
-+       `32_GB_Memory_Card` == 1 ~ "32GB Memory Card",
-+       `Keyboard_+_Pencil` == 1 ~ "Keyboard + Pencil",
-+       `Keyboard_+_Mouse_+_Pencil` == 1 ~ "Keyboard + Mouse + Pencil",
-+       TRUE ~ "None"
-+     ),
-+     Cash_Back = case_when(
-+       `50_Cash_Back` == 1 ~ "50 EUR",
-+       `100_Cash_Back` == 1 ~ "100 EUR",
-+       `150_Cash_Back` == 1 ~ "150 EUR",
-+       TRUE ~ "No Cash Back"
-+     ),
-+     Display_Size = case_when(
-+       `8_Inches` == 1 ~ "8 Inches",
-+       `10_Inches` == 1 ~ "10 Inches",
-+       `12_Inches` == 1 ~ "12 Inches",
-+       `13_Inches` == 1 ~ "13 Inches",
-+       TRUE ~ "7 Inches"
-+     )
-+   ) %>%
-+   select(-starts_with("Brand_"), -High_Resolution_264_ppi, -`16_GB`, -`32_GB`, -`64_GB`, -`128GB`, 
-+          -Without_SDSlot, -`1.6_GHz`, -`2.2_GHz`, -`812_h._Runtime`, -`WLAN_+_UMTS/3G`, -`WLAN_+_LTE/4G`, 
-+          -Sphone_Synch., -Cover, -Keyboard, -Mouse, -Pencil, -`32_GB_Memory_Card`, 
-+          -`Keyboard_+_Pencil`, -`Keyboard_+_Mouse_+_Pencil`, -`50_Cash_Back`, -`100_Cash_Back`, 
-+          -`150_Cash_Back`, -`8_Inches`, -`10_Inches`, -`12_Inches`, -`13_Inches`)
-> # Relevel factors
-> combined_data <- combined_data %>%
-+   mutate(
-+     Brand = relevel(factor(Brand), ref = "Outside Option"),
-+     Resolution = relevel(factor(Resolution), ref = "Standard"),
-+     Memory = relevel(factor(Memory), ref = "8GB"),
-+     SD_Slot = relevel(factor(SD_Slot), ref = "With"),
-+     Performance = relevel(factor(Performance), ref = "1 GHz"),
-+     Battery_Run_Time = relevel(factor(Battery_Run_Time), ref = "4-8 hours"),
-+     Connections = relevel(factor(Connections), ref = "WLAN"),
-+     Sync_to_Smartphone = relevel(factor(Sync_to_Smartphone), ref = "No"),
-+     Value_Pack = relevel(factor(Value_Pack), ref = "No"),
-+     Equipment = relevel(factor(Equipment), ref = "None"),
-+     Cash_Back = relevel(factor(Cash_Back), ref = "No Cash Back"),
-+     Display_Size = relevel(factor(Display_Size), ref = "7 Inches")
-+   )
-> # Convert to mlogit format
-> mlogit_data <- mlogit.data(
-+   combined_data,
-+   choice = "Chosen",
-+   shape  = "long",
-+   alt.var = "AltID",
-+   chid.var = "chid"
+> #############################################
+> ## 1 Model-Free Analysis
+> #############################################
+> # We'll examine frequencies, cross-tabulations, and chosen analysis 
+> # for a thorough model-free exploration.
+> #############################################
+> ## 1.1 : Frequencies & Tables
+> #############################################
+> # List of key attributes to explore
+> attributes <- c(
++   "Brand", "Cash_Back", "Resolution", "Memory", "SD_Slot", 
++   "Performance", "Battery_Run_Time", "Connections", 
++   "Sync_to_Smartphone", "Value_Pack", "Equipment", "Display_Size"
 + )
-> # 1.1 Base formula (no interactions)
+> 
+> cat("\n===========================================\n")
+
+===========================================
+> cat("    FREQUENCIES & PROPORTIONS OF ATTRIBUTES\n")
+    FREQUENCIES & PROPORTIONS OF ATTRIBUTES
+> cat("===========================================\n")
+===========================================
+> 
+> # Basic Frequency and Proportion for each attribute
+> for (attr in attributes) {
++   cat("\n----------------------------\n")
++   cat("Attribute:", attr, "\n")
++   cat("----------------------------\n")
++   
++   freq_table <- table(combined_data[[attr]])
++   prop_table <- prop.table(freq_table)
++   
++   cat("Frequency:\n")
++   print(freq_table)
++   
++   cat("\nProportion:\n")
++   print(prop_table)
++ }
+
+----------------------------
+Attribute: Brand 
+----------------------------
+Frequency:
+
+Outside Option              A              B              C              D              E              F              G 
+         13598           5829           5827           5830           5836           5826           5825           5821 
+
+Proportion:
+
+Outside Option              A              B              C              D              E              F              G 
+     0.2500000      0.1071665      0.1071297      0.1071849      0.1072952      0.1071113      0.1070930      0.1070194 
+
+----------------------------
+Attribute: Cash_Back 
+----------------------------
+Frequency:
+
+No Cash Back      100 EUR      150 EUR       50 EUR 
+       31020         7213         3829        12330 
+
+Proportion:
+
+No Cash Back      100 EUR      150 EUR       50 EUR 
+  0.57030446   0.13261141   0.07039638   0.22668775 
+
+----------------------------
+Attribute: Resolution 
+----------------------------
+Frequency:
+
+Standard     High 
+   33995    20397 
+
+Proportion:
+
+Standard     High 
+   0.625    0.375 
+
+----------------------------
+Attribute: Memory 
+----------------------------
+Frequency:
+
+  8GB 128GB  16GB  32GB  64GB 
+21756  8166  8157  8155  8158 
+
+Proportion:
+
+      8GB     128GB      16GB      32GB      64GB 
+0.3999853 0.1501324 0.1499669 0.1499301 0.1499853 
+
+----------------------------
+Attribute: SD_Slot 
+----------------------------
+Frequency:
+
+   With Without 
+  25264   29128 
+
+Proportion:
+
+     With   Without 
+0.4644801 0.5355199 
+
+----------------------------
+Attribute: Performance 
+----------------------------
+Frequency:
+
+  1 GHz 1.6 GHz 2.2 GHz 
+  27196   13598   13598 
+
+Proportion:
+
+  1 GHz 1.6 GHz 2.2 GHz 
+   0.50    0.25    0.25 
+
+----------------------------
+Attribute: Battery_Run_Time 
+----------------------------
+Frequency:
+
+ 4-8 hours 8-12 hours 
+     33991      20401 
+
+Proportion:
+
+ 4-8 hours 8-12 hours 
+ 0.6249265  0.3750735 
+
+----------------------------
+Attribute: Connections 
+----------------------------
+Frequency:
+
+            WLAN  WLAN + LTE (4G) WLAN + UMTS (3G) 
+           27196            13598            13598 
+
+Proportion:
+
+            WLAN  WLAN + LTE (4G) WLAN + UMTS (3G) 
+            0.50             0.25             0.25 
+
+----------------------------
+Attribute: Sync_to_Smartphone 
+----------------------------
+Frequency:
+
+   No   Yes 
+33990 20402 
+
+Proportion:
+
+       No       Yes 
+0.6249081 0.3750919 
+
+----------------------------
+Attribute: Value_Pack 
+----------------------------
+Frequency:
+
+   No   Yes 
+39092 15300 
+
+Proportion:
+
+       No       Yes 
+0.7187086 0.2812914 
+
+----------------------------
+Attribute: Equipment 
+----------------------------
+Frequency:
+
+                     None          32GB Memory Card                     Cover                  Keyboard Keyboard + Mouse + Pencil 
+                    18703                      5101                      5096                      5091                      5106 
+        Keyboard + Pencil                     Mouse                    Pencil 
+                     5096                      5092                      5107 
+
+Proportion:
+
+                     None          32GB Memory Card                     Cover                  Keyboard Keyboard + Mouse + Pencil 
+               0.34385571                0.09378217                0.09369025                0.09359832                0.09387410 
+        Keyboard + Pencil                     Mouse                    Pencil 
+               0.09369025                0.09361671                0.09389248 
+
+----------------------------
+Attribute: Display_Size 
+----------------------------
+Frequency:
+
+ 7 Inches 10 Inches 12 Inches 13 Inches  8 Inches 
+    24822      6119      6120      6118     11213 
+
+Proportion:
+
+ 7 Inches 10 Inches 12 Inches 13 Inches  8 Inches 
+0.4563539 0.1124982 0.1125165 0.1124798 0.2061516 
+> 
+> #############################################
+> ## 1.2 Cross-Tabulations
+> #############################################
+> 
+> 
+> cat("\n===========================================\n")
+
+===========================================
+> cat("      CROSS-TABULATIONS OF ATTRIBUTES\n")
+      CROSS-TABULATIONS OF ATTRIBUTES
+> cat("===========================================\n")
+===========================================
+> 
+> # 1) Cash_Back x Brand
+> cat("\n--- Cross-tabulation: Cash_Back x Brand ---\n")
+
+--- Cross-tabulation: Cash_Back x Brand ---
+> table_brand_cb <- table(combined_data$Brand, combined_data$Cash_Back)
+> print(table_brand_cb)
+                
+                 No Cash Back 100 EUR 150 EUR 50 EUR
+  Outside Option        13598       0       0      0
+  A                      2387    1012     660   1770
+  B                      2416    1143     564   1704
+  C                      2377    1038     652   1763
+  D                      2655    1110     393   1678
+  E                      2519    1041     557   1709
+  F                      2543    1034     420   1828
+  G                      2525     835     583   1878
+> cat("\nRow-wise Proportions:\n")
+
+Row-wise Proportions:
+> print(prop.table(table_brand_cb, margin = 1))
+                
+                 No Cash Back    100 EUR    150 EUR     50 EUR
+  Outside Option   1.00000000 0.00000000 0.00000000 0.00000000
+  A                0.40950420 0.17361469 0.11322697 0.30365414
+  B                0.41462159 0.19615583 0.09679080 0.29243178
+  C                0.40771870 0.17804460 0.11183533 0.30240137
+  D                0.45493489 0.19019877 0.06734064 0.28752570
+  E                0.43237212 0.17868177 0.09560590 0.29334020
+  F                0.43656652 0.17751073 0.07210300 0.31381974
+  G                0.43377427 0.14344614 0.10015461 0.32262498
+> cat("\nColumn-wise Proportions:\n")
+
+Column-wise Proportions:
+> print(prop.table(table_brand_cb, margin = 2))
+                
+                 No Cash Back    100 EUR    150 EUR     50 EUR
+  Outside Option   0.43836235 0.00000000 0.00000000 0.00000000
+  A                0.07695035 0.14030223 0.17236876 0.14355231
+  B                0.07788524 0.15846388 0.14729694 0.13819951
+  C                0.07662798 0.14390683 0.17027945 0.14298459
+  D                0.08558994 0.15388881 0.10263776 0.13609084
+  E                0.08120567 0.14432275 0.14546879 0.13860503
+  F                0.08197937 0.14335228 0.10968921 0.14825629
+  G                0.08139910 0.11576321 0.15225908 0.15231144
+> 
+> # 2) Price Binning
+> cat("\n--- Cross-tabulation: Price_Bin x Cash_Back ---\n")
+
+--- Cross-tabulation: Price_Bin x Cash_Back ---
+> combined_data$Price_Bin <- cut(
++   combined_data$Price,
++   breaks = c(-Inf, 0, 2, 4, 6, 8, Inf),
++   labels = c("0", "0-2", "2-4", "4-6", "6-8", ">8")
++ )
+> 
+> table_price_cb <- table(combined_data$Price_Bin, combined_data$Cash_Back)
+> cat("\nFrequency:\n")
+
+Frequency:
+> print(table_price_cb)
+     
+      No Cash Back 100 EUR 150 EUR 50 EUR
+  0          13598       0       0      0
+  0-2         7509       0       0   2691
+  2-4         4439    1685       0   4086
+  4-6         3000    2841    1278   3059
+  6-8         1379    1104    1290   1329
+  >8          1095    1583    1261   1165
+> cat("\nRow-wise Proportions (Price_Bin basis):\n")
+
+Row-wise Proportions (Price_Bin basis):
+> print(prop.table(table_price_cb, margin = 1))
+     
+      No Cash Back   100 EUR   150 EUR    50 EUR
+  0      1.0000000 0.0000000 0.0000000 0.0000000
+  0-2    0.7361765 0.0000000 0.0000000 0.2638235
+  2-4    0.4347698 0.1650343 0.0000000 0.4001959
+  4-6    0.2947534 0.2791315 0.1255649 0.3005502
+  6-8    0.2702862 0.2163857 0.2528420 0.2604861
+  >8     0.2145376 0.3101489 0.2470611 0.2282524
+> cat("\nColumn-wise Proportions (Cash_Back basis):\n")
+
+Column-wise Proportions (Cash_Back basis):
+> print(prop.table(table_price_cb, margin = 2))
+     
+      No Cash Back    100 EUR    150 EUR     50 EUR
+  0     0.43836235 0.00000000 0.00000000 0.00000000
+  0-2   0.24206963 0.00000000 0.00000000 0.21824818
+  2-4   0.14310123 0.23360599 0.00000000 0.33138686
+  4-6   0.09671180 0.39387218 0.33376861 0.24809408
+  6-8   0.04445519 0.15305698 0.33690259 0.10778589
+  >8    0.03529981 0.21946486 0.32932881 0.09448500
+> 
+> # 3) Brand x Memory
+> cat("\n--- Cross-tabulation: Brand x Memory ---\n")
+
+--- Cross-tabulation: Brand x Memory ---
+> table_brand_memory <- table(combined_data$Brand, combined_data$Memory)
+> print(table_brand_memory)
+                
+                   8GB 128GB  16GB  32GB  64GB
+  Outside Option 13598     0     0     0     0
+  A               1121  1098  1238  1151  1221
+  B               1211  1292  1019  1129  1176
+  C               1202  1016  1207  1216  1189
+  D               1122  1245  1173  1063  1233
+  E               1021  1217  1424  1105  1059
+  F               1217  1025  1124  1319  1140
+  G               1264  1273   972  1172  1140
+> cat("\nRow-wise Proportions:\n")
+
+Row-wise Proportions:
+> print(prop.table(table_brand_memory, margin = 1))
+                
+                       8GB     128GB      16GB      32GB      64GB
+  Outside Option 1.0000000 0.0000000 0.0000000 0.0000000 0.0000000
+  A              0.1923143 0.1883685 0.2123863 0.1974610 0.2094699
+  B              0.2078256 0.2217264 0.1748756 0.1937532 0.2018191
+  C              0.2061750 0.1742710 0.2070326 0.2085763 0.2039451
+  D              0.1922550 0.2133310 0.2009938 0.1821453 0.2112748
+  E              0.1752489 0.2088912 0.2444216 0.1896670 0.1817714
+  F              0.2089270 0.1759657 0.1929614 0.2264378 0.1957082
+  G              0.2171448 0.2186909 0.1669816 0.2013400 0.1958426
+> cat("\nColumn-wise Proportions:\n")
+
+Column-wise Proportions:
+> print(prop.table(table_brand_memory, margin = 2))
+                
+                        8GB      128GB       16GB       32GB       64GB
+  Outside Option 0.62502298 0.00000000 0.00000000 0.00000000 0.00000000
+  A              0.05152602 0.13445996 0.15177148 0.14114040 0.14966904
+  B              0.05566281 0.15821700 0.12492338 0.13844267 0.14415298
+  C              0.05524913 0.12441832 0.14797107 0.14911097 0.14574651
+  D              0.05157198 0.15246143 0.14380287 0.13034948 0.15113999
+  E              0.04692958 0.14903257 0.17457399 0.13549969 0.12981123
+  F              0.05593859 0.12552045 0.13779576 0.16174126 0.13974013
+  G              0.05809892 0.15589028 0.11916146 0.14371551 0.13974013
+> 
+> # 4) Brand x Display_Size
+> cat("\n--- Cross-tabulation: Brand x Display_Size ---\n")
+
+--- Cross-tabulation: Brand x Display_Size ---
+> table_brand_display <- table(combined_data$Brand, combined_data$Display_Size)
+> print(table_brand_display)
+                
+                 7 Inches 10 Inches 12 Inches 13 Inches 8 Inches
+  Outside Option    13598         0         0         0        0
+  A                  1644       752       997       957     1479
+  B                  1539       971       944       836     1537
+  C                  1603       845       825       817     1740
+  D                  1674       838       752       936     1636
+  E                  1511       918       838       795     1764
+  F                  1438       831       989       862     1705
+  G                  1815       964       775       915     1352
+> cat("\nRow-wise Proportions:\n")
+
+Row-wise Proportions:
+> print(prop.table(table_brand_display, margin = 1))
+                
+                  7 Inches 10 Inches 12 Inches 13 Inches  8 Inches
+  Outside Option 1.0000000 0.0000000 0.0000000 0.0000000 0.0000000
+  A              0.2820381 0.1290101 0.1710413 0.1641791 0.2537313
+  B              0.2641153 0.1666381 0.1620045 0.1434701 0.2637721
+  C              0.2749571 0.1449400 0.1415094 0.1401372 0.2984563
+  D              0.2868403 0.1435915 0.1288554 0.1603838 0.2803290
+  E              0.2593546 0.1575695 0.1438380 0.1364573 0.3027806
+  F              0.2468670 0.1426609 0.1697854 0.1479828 0.2927039
+  G              0.3118021 0.1656073 0.1331386 0.1571895 0.2322625
+> cat("\nColumn-wise Proportions:\n")
+
+Column-wise Proportions:
+> print(prop.table(table_brand_display, margin = 2))
+                
+                   7 Inches  10 Inches  12 Inches  13 Inches   8 Inches
+  Outside Option 0.54782048 0.00000000 0.00000000 0.00000000 0.00000000
+  A              0.06623157 0.12289590 0.16290850 0.15642367 0.13190047
+  B              0.06200145 0.15868606 0.15424837 0.13664596 0.13707304
+  C              0.06457981 0.13809446 0.13480392 0.13354037 0.15517703
+  D              0.06744017 0.13695048 0.12287582 0.15299117 0.14590208
+  E              0.06087342 0.15002451 0.13692810 0.12994443 0.15731740
+  F              0.05793248 0.13580650 0.16160131 0.14089572 0.15205565
+  G              0.07312062 0.15754208 0.12663399 0.14955868 0.12057433
+> 
+> #############################################
+> ## 1.3 Analysis of Chosen Alternatives
+> #############################################
+> 
+> cat("\n===========================================\n")
+
+===========================================
+> cat("        CHOSEN ALTERNATIVES ANALYSIS\n")
+        CHOSEN ALTERNATIVES ANALYSIS
+> cat("===========================================\n")
+===========================================
+> 
+> # Filter rows where the alternative was chosen
+> chosen_rows <- combined_data %>% filter(Chosen == 1)
+> 
+> cat("\n--- Frequency and Proportion of Chosen Cash_Back Levels ---\n")
+
+--- Frequency and Proportion of Chosen Cash_Back Levels ---
+> chosen_cb_freq <- table(chosen_rows$Cash_Back)
+> print(chosen_cb_freq)
+
+No Cash Back      100 EUR      150 EUR       50 EUR 
+        8181         1609          628         3180 
+> 
+> cat("\nProportion among chosen:\n")
+
+Proportion among chosen:
+> print(prop.table(chosen_cb_freq))
+
+No Cash Back      100 EUR      150 EUR       50 EUR 
+  0.60163259   0.11832622   0.04618326   0.23385792 
+> 
+> cat("\nProportion of Cash_Back in Full Dataset:\n")
+
+Proportion of Cash_Back in Full Dataset:
+> print(prop.table(table(combined_data$Cash_Back)))
+
+No Cash Back      100 EUR      150 EUR       50 EUR 
+  0.57030446   0.13261141   0.07039638   0.22668775 
+> 
+> # Price statistics for chosen rows
+> cat("\n--- Price Statistics for Chosen Rows ---\n")
+
+--- Price Statistics for Chosen Rows ---
+> chosen_price_stats <- chosen_rows %>%
++   summarise(
++     mean_price   = mean(Price),
++     median_price = median(Price),
++     min_price    = min(Price),
++     max_price    = max(Price)
++   )
+> print(chosen_price_stats)
+  mean_price median_price min_price max_price
+1   2.843373         1.99         0      8.99
+> 
+> # Summaries by Brand and Cash_Back
+> cat("\n--- Summary by Brand and Cash_Back ---\n")
+
+--- Summary by Brand and Cash_Back ---
+> combined_data %>%
++   group_by(Brand, Cash_Back) %>%
++   summarise(
++     count        = n(),
++     mean_price   = mean(Price),
++     mean_chosen  = mean(Chosen),
++     .groups = "drop"
++   ) %>%
++   arrange(Cash_Back, Brand) %>%
++   print()
+# A tibble: 29 × 5
+   Brand          Cash_Back    count mean_price mean_chosen
+   <fct>          <fct>        <int>      <dbl>       <dbl>
+ 1 Outside Option No Cash Back 13598       0          0.266
+ 2 A              No Cash Back  2387       3.39       0.315
+ 3 B              No Cash Back  2416       3.60       0.334
+ 4 C              No Cash Back  2377       3.38       0.289
+ 5 D              No Cash Back  2655       3.40       0.241
+ 6 E              No Cash Back  2519       3.57       0.187
+ 7 F              No Cash Back  2543       3.48       0.251
+ 8 G              No Cash Back  2525       3.57       0.225
+ 9 A              100 EUR       1012       5.95       0.261
+10 B              100 EUR       1143       6.14       0.308
+# ℹ 19 more rows
+# ℹ Use `print(n = ...)` to see more rows
+> 
+> 
+> #############################################
+> ## 1.4 Additional Summaries and Checks
+> #############################################
+> 
+> cat("\n===========================================\n")
+
+===========================================
+> cat("      ADDITIONAL SUMMARIES AND CHECKS\n")
+      ADDITIONAL SUMMARIES AND CHECKS
+> cat("===========================================\n")
+===========================================
+> 
+> # Brand-level Summaries
+> cat("\n--- Brand-level Summaries ---\n")
+
+--- Brand-level Summaries ---
+> brand_summaries <- combined_data %>%
++   group_by(Brand) %>%
++   summarise(
++     count          = n(),
++     mean_price     = mean(Price),
++     median_price   = median(Price),
++     chosen_rate    = mean(Chosen),
++     top_memory     = names(sort(table(Memory), decreasing = TRUE))[1],
++     top_display    = names(sort(table(Display_Size), decreasing = TRUE))[1],
++     .groups = "drop"
++   ) %>%
++   arrange(desc(count))
+> print(brand_summaries)
+# A tibble: 8 × 7
+  Brand          count mean_price median_price chosen_rate top_memory top_display
+  <fct>          <int>      <dbl>        <dbl>       <dbl> <chr>      <chr>      
+1 Outside Option 13598       0            0          0.266 8GB        7 Inches   
+2 D               5836       4.55         3.99       0.218 128GB      7 Inches   
+3 C               5830       4.76         4.99       0.252 32GB       8 Inches   
+4 A               5829       4.60         4.99       0.299 16GB       7 Inches   
+5 B               5827       4.65         4.99       0.330 128GB      7 Inches   
+6 E               5826       4.74         4.99       0.177 16GB       8 Inches   
+7 F               5825       4.38         3.99       0.235 32GB       8 Inches   
+8 G               5821       4.63         3.99       0.202 128GB      7 Inches   
+> 
+> # Unique (Brand, Cash_Back, Price) combos
+> cat("\n--- Number of Unique (Brand, Cash_Back, Price) Combinations ---\n")
+
+--- Number of Unique (Brand, Cash_Back, Price) Combinations ---
+> unique_combos <- combined_data %>%
++   distinct(Brand, Cash_Back, Price) %>%
++   nrow()
+> cat("Unique combinations =", unique_combos, "\n")
+Unique combinations = 162 
+> 
+> 
+> #############################################
+> ## 1.5 Visualizations
+> #############################################
+> 
+> 
+> cat("\n===========================================\n")
+
+===========================================
+> cat("      VISUALIZATIONS (MODEL-FREE)\n")
+      VISUALIZATIONS (MODEL-FREE)
+> cat("===========================================\n")
+===========================================
+> 
+> # 2.1 Bar plot for Cash_Back frequencies
+> cat("\n--- Bar Plot of Cash_Back Frequencies ---\n")
+
+--- Bar Plot of Cash_Back Frequencies ---
+> ggplot(as.data.frame(table(combined_data$Cash_Back)), aes(Var1, Freq)) +
++   geom_bar(stat = "identity") +
++   labs(
++     title = "Frequency of Cashback Levels",
++     x = "Cash_Back",
++     y = "Frequency"
++   ) +
++   theme_minimal()
+> 
+> # 2.2 Boxplot of Price by Cash_Back
+> cat("\n--- Boxplot of Price by Cash_Back ---\n")
+
+--- Boxplot of Price by Cash_Back ---
+> ggplot(combined_data, aes(x = Cash_Back, y = Price)) +
++   geom_boxplot() +
++   labs(
++     title = "Price Distribution by Cashback Level",
++     x = "Cash_Back",
++     y = "Price"
++   ) +
++   theme_minimal()
+> 
+> # 2.3 Stacked bar of Brand across Price_Bin
+> cat("\n--- Proportion of Brands Across Price Bins ---\n")
+
+--- Proportion of Brands Across Price Bins ---
+> ggplot(combined_data, aes(x = Price_Bin, fill = Brand)) +
++   geom_bar(position = "fill") +
++   labs(
++     title = "Proportion of Brands Across Price Bins",
++     x = "Price Bin",
++     y = "Proportion"
++   ) +
++   theme_minimal()
+> 
+> # 2.4 Price vs. Probability of Being Chosen (line plot)
+> cat("\n--- Price vs. Probability of Being Chosen ---\n")
+
+--- Price vs. Probability of Being Chosen ---
+> combined_data %>%
++   group_by(Price) %>%
++   summarise(mean_chosen = mean(Chosen)) %>%
++   ggplot(aes(x = Price, y = mean_chosen)) +
++   geom_line(color = "blue") +
++   geom_point(color = "blue") +
++   labs(
++     title = "Price vs. Probability of Being Chosen",
++     x = "Price",
++     y = "Mean Probability of Choice"
++   ) +
++   theme_minimal()
+> 
+> # 2.5 Nonlinear Effects: Price Bin vs. Mean Chosen
+> cat("\n--- Nonlinear Effects: Price Bin vs. Mean Chosen ---\n")
+
+--- Nonlinear Effects: Price Bin vs. Mean Chosen ---
+> combined_data %>%
++   group_by(Price_Bin) %>%
++   summarise(mean_chosen = mean(Chosen)) %>%
++   ggplot(aes(x = Price_Bin, y = mean_chosen)) +
++   geom_col(fill = "darkgreen") +
++   labs(
++     title = "Nonlinear Effects: Price Bin vs. Mean Chosen",
++     x = "Price Bin",
++     y = "Mean Probability of Choice"
++   ) +
++   theme_minimal()
+> 
+> # 2.6 Example: Distribution of Memory within Brand
+> cat("\n--- Bar Plot: Distribution of Memory within each Brand ---\n")
+
+--- Bar Plot: Distribution of Memory within each Brand ---
+> ggplot(combined_data, aes(x = Memory, fill = Brand)) +
++   geom_bar(position = "dodge") +
++   labs(
++     title = "Distribution of Memory within each Brand",
++     x = "Memory",
++     y = "Count"
++   ) +
++   theme_minimal()
+> 
+> cat("\n\n======== END OF MODEL-FREE ANALYSIS ========\n")
+
+
+======== END OF MODEL-FREE ANALYSIS ========
+> 
+> #############################################
+> ## 2. Model Specification and Estimation (BASE MODEL)
+> #############################################
+> 
+> # 2.1 Base formula (no interactions)
 > mnl_formula <- Chosen ~ 
 +   Price + 
 +   System_B + 
@@ -802,12 +654,14 @@ List of 2
 +   Equipment + 
 +   Cash_Back +
 +   Display_Size | 0
-> # 1.2 Estimate the BASE MNL model
+> 
+> # 2.2 Estimate the BASE MNL model
 > mnl_model <- mlogit(
 +   formula = mnl_formula,
 +   data    = mlogit_data
 + )
-> # 1.3 View summary
+> 
+> # 2.3 View summary
 > summary(mnl_model)
 
 Call:
@@ -867,28 +721,45 @@ Display_Size8 Inches                0.0997575  0.0305660   3.2637 0.0010998 **
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 Log-Likelihood: -17763
-> # 2.1 Log-likelihood
+> 
+> 
+> #############################################
+> ## 2.4 Compute Model Fit Metrics (BASE MODEL)
+> #############################################
+> 
+> # 2.4.1 Log-likelihood
 > log_likelihood <- logLik(mnl_model)
-> # 2.2 Null log-likelihood (uniform distribution among 4 alts)
+> 
+> # 2.4.2 Null log-likelihood (uniform distribution among 4 alts)
 > num_tasks <- nrow(mlogit_data) / 4
 > null_loglik_uniform <- num_tasks * log(1/4)
-> # 2.3 Number of parameters (k) & observations (n)
+> 
+> # 2.4.3 Number of parameters (k) & observations (n)
 > k <- length(coef(mnl_model))
 > n <- nrow(mlogit_data)
-> # 2.4 McFadden's R^2
+> 
+> # 2.4.4 McFadden's R^2
 > mcfadden_r2 <- 1 - (as.numeric(log_likelihood) / null_loglik_uniform)
-> # 2.5 Likelihood Ratio (LR) test
+> 
+> # 2.4.5 Likelihood Ratio (LR) test
 > lr_test <- -2 * (null_loglik_uniform - as.numeric(log_likelihood))
 > lr_p_value <- pchisq(lr_test, df = k, lower.tail = FALSE)
-> # 2.6 AIC & BIC
+> 
+> # 2.4.6 AIC & BIC
 > aic <- AIC(mnl_model) 
 > bic <- -2 * as.numeric(log_likelihood) + k * log(n)
-> # 2.7 Predictive accuracy
+> 
+> # 2.4.7 Predictive accuracy
 > mnl_predictions   <- predict(mnl_model, newdata = mlogit_data)
 > predicted_choice  <- apply(mnl_predictions, 1, which.max)
 > actual_choice     <- mlogit_data$AltID[mlogit_data$Chosen == 1]
 > accuracy          <- mean(predicted_choice == actual_choice)
 > accuracy_percent  <- accuracy * 100
+> 
+> #############################################
+> ## 2.5 Print Model Fit Results (BASE MODEL)
+> #############################################
+> 
 > cat("\nMODEL FIT METRICS (Base Model)\n")
 
 MODEL FIT METRICS (Base Model)
@@ -910,7 +781,16 @@ AIC:                      35598.32
 BIC:                      35918.86 
 > cat("Predictive Accuracy (%): ", accuracy_percent, "\n")
 Predictive Accuracy (%):  37.00544 
-> # 4.2 2nd-order condition: Hessian negative definite
+> 
+> #############################################
+> ## 2.6 Diagnostics (BASE MODEL)
+> #############################################
+> 
+> # 2.6.1 1st-order condition
+> #  => summary(mnl_model) typically shows gradient info
+> #  => "gradient close to zero" means solution is good
+> 
+> # 2.6.2 2nd-order condition: Hessian negative definite
 > hessian_eigs <- eigen(mnl_model$hessian)$values
 > cat("\nHessian Eigenvalues (Base Model):\n")
 
@@ -923,11 +803,13 @@ Hessian Eigenvalues (Base Model):
 > cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
 
 If all these eigenvalues are negative, we have a local maximum.
+> 
+> 
 > #############################################
-> ## 5. Model Specification and Estimation (INTERACTION MODEL)
+> ## 3. Model Specification and Estimation (INTERACTION MODEL)
 > #############################################
 > 
-> # 5.1 Define formula with interactions
+> # 3.1 Define formula with interactions
 > #     We add Price:Cash_Back, Price:Brand, Battery_Run_Time:Price, Memory:SD_Slot
 > 
 > mnl_formula_interactions <- Chosen ~ 
@@ -951,16 +833,16 @@ If all these eigenvalues are negative, we have a local maximum.
 +   Price:Cash_Back +
 +   # Price:Brand +
 +   # Price:Performance +
-+    Memory:SD_Slot |
++   Memory:SD_Slot |
 +   0
 > 
-> # 5.2 Estimate the MNL model with interactions
+> # 3.2 Estimate the MNL model with interactions
 > mnl_model_int <- mlogit(
 +   formula = mnl_formula_interactions,
 +   data    = mlogit_data
 + )
 > 
-> # 5.3 View summary
+> # 3.3 View summary
 > summary(mnl_model_int)
 
 Call:
@@ -1031,32 +913,32 @@ Log-Likelihood: -17753
 > 
 > 
 > #############################################
-> ## 6. Compute Model Fit Metrics (INTERACTION MODEL)
+> ## 3.4 Compute Model Fit Metrics (INTERACTION MODEL)
 > #############################################
 > 
-> # 6.1 Log-likelihood
+> # 3.4.1 Log-likelihood
 > log_likelihood_int <- logLik(mnl_model_int)
 > 
-> # 6.2 Same null log-likelihood as before
+> # 3.4.2 Same null log-likelihood as before
 > #     (still uniform across 4 alts)
 > null_loglik_int <- null_loglik_uniform
 > 
-> # 6.3 Number of parameters (k2) & observations (n2)
+> # 3.4.3 Number of parameters (k2) & observations (n2)
 > k2 <- length(coef(mnl_model_int))
 > n2 <- nrow(mlogit_data)
 > 
-> # 6.4 McFadden's R^2
+> # 3.4.4 McFadden's R^2
 > mcfadden_r2_int <- 1 - (as.numeric(log_likelihood_int) / null_loglik_int)
 > 
-> # 6.5 Likelihood Ratio (LR) test
+> # 3.4.5 Likelihood Ratio (LR) test
 > lr_test_int <- -2 * (null_loglik_int - as.numeric(log_likelihood_int))
 > lr_p_value_int <- pchisq(lr_test_int, df = k2, lower.tail = FALSE)
 > 
-> # 6.6 AIC & BIC
+> # 3.4.6 AIC & BIC
 > aic_int <- AIC(mnl_model_int) 
 > bic_int <- -2 * as.numeric(log_likelihood_int) + k2 * log(n2)
 > 
-> # 6.7 Predictive accuracy
+> # 3.4.7 Predictive accuracy
 > mnl_predictions_int <- predict(mnl_model_int, newdata = mlogit_data)
 > predicted_choice_int <- apply(mnl_predictions_int, 1, which.max)
 > actual_choice_int    <- mlogit_data$AltID[mlogit_data$Chosen == 1]
@@ -1064,7 +946,7 @@ Log-Likelihood: -17753
 > accuracy_percent_int <- accuracy_int * 100
 > 
 > #############################################
-> ## 7. Print Model Fit Results (INTERACTION MODEL)
+> ## 3.5 Print Model Fit Results (INTERACTION MODEL)
 > #############################################
 > 
 > cat("\nMODEL FIT METRICS (Interaction Model)\n")
@@ -1091,13 +973,14 @@ Predictive Accuracy (%):  37.34373
 > 
 > 
 > #############################################
-> ## 8. Diagnostics (INTERACTION MODEL)
+> ## 3.6 Diagnostics (INTERACTION MODEL)
 > #############################################
 > 
-> # 8.1 1st-order condition
+> # 3.6.1 1st-order condition
 > #     Check summary(mnl_model_int) for gradient info
 > 
-> # 8.2 2nd-order condition: Hessian negative definite
+> 
+> ## 3.6.2 2nd-order condition: Hessian negative definite
 > hessian_eigs_int <- eigen(mnl_model_int$hessian)$values
 > cat("\nHessian Eigenvalues (Interaction Model):\n")
 
@@ -1111,3 +994,4 @@ Hessian Eigenvalues (Interaction Model):
 > cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
 
 If all these eigenvalues are negative, we have a local maximum.
+> 
