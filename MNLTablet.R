@@ -651,227 +651,210 @@ cat("\nHessian Eigenvalues (Interaction Model):\n")
 print(hessian_eigs_int)
 cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
 
-#############################################
-## 4. FREQUENTIST Mixed Logit (MXL) Model ## DO NOT CONTINUE '' DO NOT REGARD
-#############################################
-# Detect number of available cores
-num_cores <- parallel::detectCores() - 1  # Leave one core free for other tasks
+####################################################################################################
+##   4. Hierarchical Mixed Logit (MXL) Model
+####################################################################################################
 
-# Register the parallel backend
-cl <- parallel::makeCluster(num_cores)
-doParallel::registerDoParallel(cl)
+#-------------------------------------------------------------------------------------
+# In this section, we implement a hierarchical MNL mixture model
+# that captures preference heterogeneity in Price, Brand, and possibly Cashback. 
+# We begin with two mixture components (ncomp=2) to distinguish "High" vs. "Low" 
+# price-sensitivity segments. We’ll start with 1,000 MCMC iterations to test and 
+# debug, then later scale up to ~10k draws once the model is stable.
+# 
+# For ordinal constraints (e.g., memory levels), we plan to use re-parameterization. 
+# The code below sets the stage for random coefficients on Price, Brand, etc. 
+# but does not yet enforce the monotonic transformations—those transformations 
+# would occur when constructing lgtdata$X for each respondent (i.e., 
+# using squared differences or exponentials to guarantee ordering).
+#-------------------------------------------------------------------------------------
 
 
-mlogit_data_mxl <- mlogit.data(
-  combined_data,
-  choice   = "Chosen",
-  shape    = "long",
-  alt.var  = "AltID",
-  chid.var = "chid",
-  id.var   = "RespID"   
+runHierarchicalMXL <- function(
+    Data,         # List containing `p` (alternatives), `lgtdata` (individual-level data), optionally `Z`
+    Prior = list(),  # Prior parameters
+    Mcmc = list(R = 1000, keep = 10, w = 0.1, s = 0.1),  # MCMC settings (defaults)
+    nvar_c = 0,   # Number of constrained variables
+    debug = FALSE # Flag for verbose output
+) {
+  ####### Step 1: Input Validation #######
+  if (is.null(Data$p) || is.null(Data$lgtdata)) {
+    stop("Data must include 'p' (alternatives per task) and 'lgtdata' (individual-level data).")
+  }
+  if (!is.null(Data$Z)) {
+    if (nrow(Data$Z) != length(Data$lgtdata)) {
+      stop("Number of rows in Z must match the number of individuals in lgtdata.")
+    }
+    Data$Z <- scale(Data$Z, center = TRUE, scale = FALSE)  # De-mean Z
+  }
+  
+  ####### Step 2: Set Defaults for Prior Parameters #######
+  prior_defaults <- list(
+    ncomp = 2,          # Default to 2 mixture components
+    mustarbarc = NULL,  # Not used unless constrained variables are specified
+    nu = 39,            # Degrees of freedom for inverse-Wishart prior on Sigma
+    V = diag(36) * 39   # Scale matrix for inverse-Wishart (identity scaled by df)
+  )
+  Prior <- modifyList(prior_defaults, Prior)
+  
+  ####### Step 3: Set Defaults for MCMC Parameters #######
+  mcmc_defaults <- list(
+    R = 1000,  # Number of MCMC iterations
+    keep = 10, # Save every 'keep' iterations
+    w = 0.1,   # Weight parameter for Metropolis proposal
+    s = 0.1    # Scaling for random-walk Metropolis
+  )
+  Mcmc <- modifyList(mcmc_defaults, Mcmc)
+  
+  ####### Step 4: Pool Data #######
+  ypooled <- unlist(lapply(Data$lgtdata, function(indiv) indiv$y))
+  Xpooled <- do.call(rbind, lapply(Data$lgtdata, function(indiv) indiv$X))
+  
+  if (!all(ypooled %in% 1:Data$p)) {
+    stop("Dependent variable y must take values between 1 and p.")
+  }
+  if (!all(sapply(Data$lgtdata, function(indiv) ncol(indiv$X)) == ncol(Xpooled))) {
+    stop("All X matrices must have the same number of columns.")
+  }
+  
+  ####### Step 5: Print Model Details #######
+  if (debug) {
+    cat("\nHierarchical Multinomial Logit (HMNL) Model\n")
+    cat("Number of Alternatives (p):", Data$p, "\n")
+    cat("Number of Variables:", ncol(Xpooled), "\n")
+    cat("Number of Individuals:", length(Data$lgtdata), "\n")
+    cat("Mixture Components (ncomp):", Prior$ncomp, "\n")
+    cat("MCMC Iterations (R):", Mcmc$R, "\n")
+  }
+  
+  ####### Step 6: Run MCMC Sampling #######
+  set.seed(123)  # Ensure reproducibility
+  model_output <- rhierMnlRwMixture(
+    Data = Data,
+    Prior = Prior,
+    Mcmc = Mcmc
+  )
+  
+  ####### Step 7: Summarize Results #######
+  summary <- list(
+    beta_means = apply(model_output$betadraw, c(2, 3), mean),
+    overall_beta_means = apply(model_output$betadraw, 2, mean),
+    mean_mix_weights = apply(model_output$nmix$probdraw, 2, mean),
+    nmix_draws = head(model_output$nmix$probdraw)
+  )
+  
+  if (debug) {
+    cat("\n--- Overall Beta Means (Collapsed across Individuals) ---\n")
+    print(summary$overall_beta_means)
+    
+    cat("\n--- Mixture Weights (Per MCMC Draw) ---\n")
+    print(summary$nmix_draws)
+    
+    cat("\n--- Average Mixture Weights ---\n")
+    print(summary$mean_mix_weights)
+  }
+  
+  ####### Step 8: Return Output #######
+  return(list(
+    model_output = model_output,
+    summary = summary
+  ))
+}
+
+
+
+## 4.1: Prepare the bayesm "Data" list
+## --------------------------------------------------
+## E_Data_mod is assumed to be properly formatted for bayesm (with:
+##   E_Data_mod$p = number of alternatives per choice task (likely 4),
+##   E_Data_mod$lgtdata = list of individual-level data, each containing y and X).
+## If you want to incorporate custom-coded constraints (e.g., memory reparam),
+## you'd transform the X-matrices in E_Data_mod$lgtdata before calling the model.
+
+Data_MXL <- list(
+  p       = E_Data_mod$p,        # number of alternatives (4 in your design)
+  lgtdata = E_Data_mod$lgtdata   # list of individual data with y, X
+  # Optionally: Z = ... if you have any respondent-level covariates
 )
 
 
-# 4.1 Specify the MXL formula
+## 4.2: Specify Prior and MCMC Settings
+## --------------------------------------------------
+## We'll use two mixture components to capture two latent segments.
+## Start with R=1000 draws for quicker testing. You can later increase to ~10k.
+## (We keep other defaults, e.g., w and s, as moderate values.)
 
-mxl_formula <- Chosen ~ 
-  Price + 
-  System + 
-  Brand + 
-  Resolution + 
-  Memory +
-  SD_Slot + 
-  Performance + 
-  Battery_Run_Time + 
-  Connections +
-  Sync_to_Smartphone + 
-  Value_Pack + 
-  Equipment + 
-  Cash_Back +
-  Display_Size
-
-# 4.2 Estimate the MXL model using gmnl
-#     We'll specify a single random parameter at first: Price ~ Normal, add more below under ranp 
-
-mxl_model <- gmnl(
-  formula            = mxl_formula,
-  data               = mlogit_data_mxl,  
-  model              = "mixl",       # Mixed Logit
-  ranp  = c(Price = "n"),  # random Price ~ Normal, add more later 
-  panel = TRUE,  
-  correlation = FALSE, 
-  R = 10,  # number of draws (Halton or pseudo–Monte Carlo)
-  seed = 123,  # for reproducibility
-  cores = num_cores  # Enable parallel processing
+Prior_MXL <- list(
+  ncomp = 2       # Two mixture components
+  # If you want to set more details like mustarbarc, V, etc., do so here
 )
 
-# 4.4 Summarize the MXL model
-summary(mxl_model)
-
-# Stop the parallel cluster
-parallel::stopCluster(cl)
-
-#############################################
-## 4.5 Compute Model Fit Metrics (MXL MODEL)
-#############################################
-
-# 4.5.1 Log-likelihood
-log_likelihood_mxl <- logLik(mxl_model)  # gmnl provides a logLik method
-
-# 4.5.2 Null log-likelihood (same as before: uniform among 4 alternatives)
-num_tasks_mxl <- nrow(mlogit_data) / 4
-null_loglik_uniform_mxl <- num_tasks_mxl * log(1/4)
-
-# 4.5.3 Number of parameters (k3) & observations (n3)
-#       In gmnl, the coefficient vector includes random param & possibly other stuff.
-#       The length of 'coef(mxl_model)' might differ from MNL. You can do:
-k3 <- length(coef(mxl_model))
-n3 <- nrow(mlogit_data)
-
-# 4.5.4 McFadden's R^2
-mcfadden_r2_mxl <- 1 - (as.numeric(log_likelihood_mxl) / null_loglik_uniform_mxl)
-
-# 4.5.5 Likelihood Ratio (LR) test
-lr_test_mxl <- -2 * (null_loglik_uniform_mxl - as.numeric(log_likelihood_mxl))
-lr_p_value_mxl <- pchisq(lr_test_mxl, df = k3, lower.tail = FALSE)
-
-# 4.5.6 AIC & BIC
-aic_mxl <- AIC(mxl_model)
-bic_mxl <- -2 * as.numeric(log_likelihood_mxl) + k3 * log(n3)
-
-# 4.5.7 Predictive accuracy
-#     gmnl provides predict(...) but the format can differ from mlogit.
-#     A simple approach is to compute predicted probabilities for each alternative
-#     and pick the highest probability. Something like:
-
-mxl_preds <- predict(mxl_model, newdata = mlogit_data, type = "prob") # funkt nicht stattdessen
-# mxl_preds <- fitted(mxl_model)
-
-# 'mxl_preds' is typically a matrix: each row = choice situation, columns = alt
-
-# Then pick the alt with max prob per row:
-predicted_choice_mxl <- apply(mxl_preds, 1, which.max)
-actual_choice_mxl    <- mlogit_data$AltID[mlogit_data$Chosen == 1]
-
-accuracy_mxl         <- mean(predicted_choice_mxl == actual_choice_mxl)
-accuracy_percent_mxl <- accuracy_mxl * 100
-
-#############################################
-## 4.6 Print Model Fit Results (MXL MODEL)
-#############################################
-cat("\nMODEL FIT METRICS (Mixed Logit Model)\n")
-cat("----------------------------------------\n")
-cat("Log-Likelihood (Model):   ", as.numeric(log_likelihood_mxl), "\n")
-cat("Log-Likelihood (Null):    ", null_loglik_uniform_mxl, "\n")
-cat("McFadden's R-squared:     ", mcfadden_r2_mxl, "\n")
-cat("Likelihood Ratio (LR):    ", lr_test_mxl, "\n")
-cat("LR Test p-value:          ", lr_p_value_mxl, "\n")
-cat("AIC:                      ", aic_mxl, "\n")
-cat("BIC:                      ", bic_mxl, "\n")
-cat("Predictive Accuracy (%):  ", accuracy_percent_mxl, "\n")
-
-#############################################
-## 4.7 Diagnostics (MXL MODEL)
-#############################################
-# 4.7.1 Checking random parameter distributions, summary, etc.
-#  -> summary(mxl_model)
-# 4.7.2 If you want respondent-level draws:
-#'ranef(mxl_model)' for individual-level estimates
-
-cat("\n======== END OF MIXED LOGIT ANALYSIS ========\n")
-
-
-
-
-
-#############
-
-# Prepare a separate data list from E_Data_mod
-data_list <- list(
-  lgtdata = E_Data_mod$lgtdata,  # Individual-level data
-  p = E_Data_mod$p              # Number of alternatives per choice task
+Mcmc_MXL <- list(
+  R    = 1000,  # number of MCMC iterations for test-run
+  keep = 1,     # store every iteration (or e.g., keep=5 to thin draws)
+  w    = 0.1,   # mixing weight in Metropolis proposals
+  s    = 0.1    # scaling factor for random-walk proposals
 )
 
-# Specify Prior with ncomp
-prior_list <- list(ncomp = 2)  # Number of mixture components
 
-# MCMC settings
-mcmc_list <- list(R = 1000, keep = 10)  # Short run for testing
+## 4.3: Run the Mixture Model
+## --------------------------------------------------
+## We call our custom wrapper function runHierarchicalMXL(), 
+## which uses bayesm’s rhierMnlRwMixture under the hood. 
+## This function is defined above in your code snippet. 
+## For reference, we pass in Data, Prior, Mcmc, and optionally nvar_c 
+## if we have constrained variables to handle.
 
-# Run the model
-set.seed(123)  # For reproducibility
-hier_mnl_model <- rhierMnlRwMixture(Data = data_list, Prior = prior_list, Mcmc = mcmc_list)
-
-# Summarize the model output
-summary(hier_mnl_model)
-
-
-# Extract and inspect posterior draws for beta parameters
-betadraws <- hier_mnl_model$betadraw
-str(betadraws)  # Check the structure
-
-# Plot trace for the first respondent's beta draws for the first variable
-plot(betadraws[1, , 1], type = "l", main = "Trace Plot: Beta for Respondent 1, Variable 1",
-     xlab = "Iteration", ylab = "Beta")
-
-# Compute posterior means of beta for all respondents
-beta_means <- apply(betadraws, c(1, 2), mean)
-head(beta_means)  # Display first few respondents' means
+mxl_model_output <- runHierarchicalMXL(
+  Data   = Data_MXL,
+  Prior  = Prior_MXL,
+  Mcmc   = Mcmc_MXL,
+  nvar_c = 0  # For now, we haven't yet enforced reparameterized constraints
+)
 
 
+## 4.4: Examine Results
+## --------------------------------------------------
+## Summaries typically include the mixture weights, means, and covariances 
+## for each component. betadraw is a 3D array of dimension (number of draws) x (nvar) x (nrespondents).
+## You can also examine the ncomp draws (nmix) to see how the mixture evolves.
+
+# Basic summary
+summary(mxl_model_output)
+
+# Posterior means of betas across draws:
+beta_means <- apply(mxl_model_output$betadraw, c(2,3), mean) 
+# Dimensions of beta_means: (nvar) x (nrespondents)
+# or if you want means across individuals for each parameter:
+overall_beta_means <- apply(mxl_model_output$betadraw, 2, mean) 
+# This collapses over individuals as well, giving one mean parameter vector.
+
+cat("\n--- Overall Beta Means (Collapsed across Individuals) ---\n")
+print(overall_beta_means)
+
+# Mixture Weights 
+cat("\n--- Mixture Weights (Per MCMC Draw) ---\n")
+# Each row of nmix$probdraw is a set of mixture probabilities for that draw
+head(mxl_model_output$nmix$probdraw)
+
+# You can compute the average mixture probabilities over draws:
+mean_mix_weights <- apply(mxl_model_output$nmix$probdraw, 2, mean)
+cat("\n--- Average Mixture Weights ---\n")
+print(mean_mix_weights)
 
 
+## 4.5: Next Steps
+## --------------------------------------------------
+## 1) Increase R to ~10k draws after verifying stable mixing in the trace plots.
+## 2) Re-parameterize ordinal attributes (e.g., memory) if you need strict monotonic constraints. 
+##    This involves transforming the columns of X in E_Data_mod$lgtdata before calling rhierMnlRwMixture_model1.
+## 3) Evaluate posterior predictive checks, WTP, and run scenario-based simulations 
+##    (changing Price, Brand, or Cashback in the design matrix to see how choice probabilities shift).
+## 4) If you decide to incorporate a budget constraint, you’ll need a custom Rcpp code approach 
+##    (where choices are made unavailable or heavily penalized if price > budget), 
+##    as previously discussed.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+cat("\n\n===== END OF HIERARCHICAL MIXED LOGIT CODE =====\n")
 
 
 
