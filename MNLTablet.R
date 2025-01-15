@@ -1,9 +1,13 @@
-################################################################################
+
+####################################################################################################
 ##   0. Setup & Data Preparation
 ##   1. Model-Free Analysis (Frequencies, Cross-Tabs, Visuals)
 ##   2. Base MNL Model
 ##   3. Interaction MNL Model
-################################################################################
+##   4. Hierachical Mixed Logit (MXL) Model
+#####################################################################################################
+
+#####################################################################################################
 # Variables:
 # "RespID"                 = Identifies each unique survey respondent
 # "TaskID"                 = Identifies each unique choice task for a respondent
@@ -13,7 +17,7 @@
 
 # Attribute Variables:
 # "System_B"               = Indicates the operating system (0 = OS A, 1 = OS B)
-# "Price"                  = Purchase price in euros (e.g., 99, 299, ..., 899)
+# "Price"                  = Purchase price in euros (99, 199, 299, 399, 499, 599, 699, 899)
 # "Brand"                  = Indicates the brand (A, B, C, D, E, F, G)
 # "Resolution"             = Display resolution ("Standard" or "High")
 # "Memory"                 = Storage memory in GB (8GB, 16GB, 32GB, 64GB, 128GB)
@@ -28,7 +32,7 @@
 # "Display_Size"           = Screen size in inches (7, 8, 10, 12, 13)
 ##########################################################################################################
 #############################################
-## 0. Setup and Data Preparation
+## 0. Setup and Data Preparation (MNL)
 #############################################
 
 # Function to load or install required packages
@@ -38,11 +42,11 @@ load_or_install <- function(package) {
     library(package, character.only = TRUE)
   }
 }
-
+D
 # List of required packages
-packages <- c("readr", "dplyr", "tidyr", "ggplot2", "parallel", "sf", 
+packages <- c("readr", "dplyr", "tidyr", "ggplot2", "doParallel", "foreach", "parallel", "sf", 
               "stringr", "data.table", "pbapply", "caret", "mlogit", 
-              "bayesm", "rstanarm")
+              "bayesm", "rstanarm", "gmnl")
 lapply(packages, load_or_install)
 
 # STEP 1: Load the raw data
@@ -55,6 +59,8 @@ load(path_e_data_mod)
 
 # Inspect the structure of the loaded estimation data
 str(E_Data_mod)
+head(E_Data_mod, 1)
+summary(E_Data_mod)
 
 # Function to prepare data for all respondents
 prepare_data <- function(E_Data_mod) {
@@ -152,6 +158,10 @@ combined_data <- combined_data %>%
       `150_Cash_Back` == 1 ~ "150 EUR",
       TRUE ~ "No Cash Back"
     ),
+    System = dplyr::case_when(
+      System_B == 1  ~ "B",
+      TRUE             ~ "A"
+    ),
     Display_Size = case_when(
       `8_Inches` == 1 ~ "8 Inches",
       `10_Inches` == 1 ~ "10 Inches",
@@ -164,7 +174,7 @@ combined_data <- combined_data %>%
          -Without_SDSlot, -`1.6_GHz`, -`2.2_GHz`, -`812_h._Runtime`, -`WLAN_+_UMTS/3G`, -`WLAN_+_LTE/4G`, 
          -Sphone_Synch., -Cover, -Keyboard, -Mouse, -Pencil, -`32_GB_Memory_Card`, 
          -`Keyboard_+_Pencil`, -`Keyboard_+_Mouse_+_Pencil`, -`50_Cash_Back`, -`100_Cash_Back`, 
-         -`150_Cash_Back`, -`8_Inches`, -`10_Inches`, -`12_Inches`, -`13_Inches`)
+         -`150_Cash_Back`, -`8_Inches`, -`10_Inches`, -`12_Inches`, -`13_Inches`, -`System_B`)
 
 # Relevel factors
 combined_data <- combined_data %>%
@@ -180,7 +190,8 @@ combined_data <- combined_data %>%
     Value_Pack = relevel(factor(Value_Pack), ref = "No"),
     Equipment = relevel(factor(Equipment), ref = "None"),
     Cash_Back = relevel(factor(Cash_Back), ref = "No Cash Back"),
-    Display_Size = relevel(factor(Display_Size), ref = "7 Inches")
+    Display_Size = relevel(factor(Display_Size), ref = "7 Inches"),
+    System = relevel(factor(System), ref = "B")
   )
 
 # Convert to mlogit format
@@ -203,7 +214,7 @@ mlogit_data <- mlogit.data(
 #############################################
 # List of key attributes to explore
 attributes <- c(
-  "Brand", "Cash_Back", "Resolution", "Memory", "SD_Slot", 
+  "Price", "Brand", "Cash_Back", "Resolution", "Memory", "SD_Slot", 
   "Performance", "Battery_Run_Time", "Connections", 
   "Sync_to_Smartphone", "Value_Pack", "Equipment", "Display_Size"
 )
@@ -449,7 +460,7 @@ cat("\n\n======== END OF MODEL-FREE ANALYSIS ========\n")
 # 2.1 Base formula (no interactions)
 mnl_formula <- Chosen ~ 
   Price + 
-  System_B + 
+  System + 
   Brand + 
   Resolution + 
   Memory +
@@ -546,7 +557,7 @@ cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
 mnl_formula_interactions <- Chosen ~ 
   # main effects
   Price + 
-  System_B + 
+  System + 
   Brand + 
   Resolution + 
   Memory +
@@ -639,6 +650,235 @@ hessian_eigs_int <- eigen(mnl_model_int$hessian)$values
 cat("\nHessian Eigenvalues (Interaction Model):\n")
 print(hessian_eigs_int)
 cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
+
+#############################################
+## 4. FREQUENTIST Mixed Logit (MXL) Model ## DO NOT CONTINUE '' DO NOT REGARD
+#############################################
+# Detect number of available cores
+num_cores <- parallel::detectCores() - 1  # Leave one core free for other tasks
+
+# Register the parallel backend
+cl <- parallel::makeCluster(num_cores)
+doParallel::registerDoParallel(cl)
+
+
+mlogit_data_mxl <- mlogit.data(
+  combined_data,
+  choice   = "Chosen",
+  shape    = "long",
+  alt.var  = "AltID",
+  chid.var = "chid",
+  id.var   = "RespID"   
+)
+
+
+# 4.1 Specify the MXL formula
+
+mxl_formula <- Chosen ~ 
+  Price + 
+  System + 
+  Brand + 
+  Resolution + 
+  Memory +
+  SD_Slot + 
+  Performance + 
+  Battery_Run_Time + 
+  Connections +
+  Sync_to_Smartphone + 
+  Value_Pack + 
+  Equipment + 
+  Cash_Back +
+  Display_Size
+
+# 4.2 Estimate the MXL model using gmnl
+#     We'll specify a single random parameter at first: Price ~ Normal, add more below under ranp 
+
+mxl_model <- gmnl(
+  formula            = mxl_formula,
+  data               = mlogit_data_mxl,  
+  model              = "mixl",       # Mixed Logit
+  ranp  = c(Price = "n"),  # random Price ~ Normal, add more later 
+  panel = TRUE,  
+  correlation = FALSE, 
+  R = 10,  # number of draws (Halton or pseudo–Monte Carlo)
+  seed = 123,  # for reproducibility
+  cores = num_cores  # Enable parallel processing
+)
+
+# 4.4 Summarize the MXL model
+summary(mxl_model)
+
+# Stop the parallel cluster
+parallel::stopCluster(cl)
+
+#############################################
+## 4.5 Compute Model Fit Metrics (MXL MODEL)
+#############################################
+
+# 4.5.1 Log-likelihood
+log_likelihood_mxl <- logLik(mxl_model)  # gmnl provides a logLik method
+
+# 4.5.2 Null log-likelihood (same as before: uniform among 4 alternatives)
+num_tasks_mxl <- nrow(mlogit_data) / 4
+null_loglik_uniform_mxl <- num_tasks_mxl * log(1/4)
+
+# 4.5.3 Number of parameters (k3) & observations (n3)
+#       In gmnl, the coefficient vector includes random param & possibly other stuff.
+#       The length of 'coef(mxl_model)' might differ from MNL. You can do:
+k3 <- length(coef(mxl_model))
+n3 <- nrow(mlogit_data)
+
+# 4.5.4 McFadden's R^2
+mcfadden_r2_mxl <- 1 - (as.numeric(log_likelihood_mxl) / null_loglik_uniform_mxl)
+
+# 4.5.5 Likelihood Ratio (LR) test
+lr_test_mxl <- -2 * (null_loglik_uniform_mxl - as.numeric(log_likelihood_mxl))
+lr_p_value_mxl <- pchisq(lr_test_mxl, df = k3, lower.tail = FALSE)
+
+# 4.5.6 AIC & BIC
+aic_mxl <- AIC(mxl_model)
+bic_mxl <- -2 * as.numeric(log_likelihood_mxl) + k3 * log(n3)
+
+# 4.5.7 Predictive accuracy
+#     gmnl provides predict(...) but the format can differ from mlogit.
+#     A simple approach is to compute predicted probabilities for each alternative
+#     and pick the highest probability. Something like:
+
+mxl_preds <- predict(mxl_model, newdata = mlogit_data, type = "prob") # funkt nicht stattdessen
+# mxl_preds <- fitted(mxl_model)
+
+# 'mxl_preds' is typically a matrix: each row = choice situation, columns = alt
+
+# Then pick the alt with max prob per row:
+predicted_choice_mxl <- apply(mxl_preds, 1, which.max)
+actual_choice_mxl    <- mlogit_data$AltID[mlogit_data$Chosen == 1]
+
+accuracy_mxl         <- mean(predicted_choice_mxl == actual_choice_mxl)
+accuracy_percent_mxl <- accuracy_mxl * 100
+
+#############################################
+## 4.6 Print Model Fit Results (MXL MODEL)
+#############################################
+cat("\nMODEL FIT METRICS (Mixed Logit Model)\n")
+cat("----------------------------------------\n")
+cat("Log-Likelihood (Model):   ", as.numeric(log_likelihood_mxl), "\n")
+cat("Log-Likelihood (Null):    ", null_loglik_uniform_mxl, "\n")
+cat("McFadden's R-squared:     ", mcfadden_r2_mxl, "\n")
+cat("Likelihood Ratio (LR):    ", lr_test_mxl, "\n")
+cat("LR Test p-value:          ", lr_p_value_mxl, "\n")
+cat("AIC:                      ", aic_mxl, "\n")
+cat("BIC:                      ", bic_mxl, "\n")
+cat("Predictive Accuracy (%):  ", accuracy_percent_mxl, "\n")
+
+#############################################
+## 4.7 Diagnostics (MXL MODEL)
+#############################################
+# 4.7.1 Checking random parameter distributions, summary, etc.
+#  -> summary(mxl_model)
+# 4.7.2 If you want respondent-level draws:
+#'ranef(mxl_model)' for individual-level estimates
+
+cat("\n======== END OF MIXED LOGIT ANALYSIS ========\n")
+
+
+
+
+
+#############
+
+# Prepare a separate data list from E_Data_mod
+data_list <- list(
+  lgtdata = E_Data_mod$lgtdata,  # Individual-level data
+  p = E_Data_mod$p              # Number of alternatives per choice task
+)
+
+# Specify Prior with ncomp
+prior_list <- list(ncomp = 2)  # Number of mixture components
+
+# MCMC settings
+mcmc_list <- list(R = 1000, keep = 10)  # Short run for testing
+
+# Run the model
+set.seed(123)  # For reproducibility
+hier_mnl_model <- rhierMnlRwMixture(Data = data_list, Prior = prior_list, Mcmc = mcmc_list)
+
+# Summarize the model output
+summary(hier_mnl_model)
+
+
+# Extract and inspect posterior draws for beta parameters
+betadraws <- hier_mnl_model$betadraw
+str(betadraws)  # Check the structure
+
+# Plot trace for the first respondent's beta draws for the first variable
+plot(betadraws[1, , 1], type = "l", main = "Trace Plot: Beta for Respondent 1, Variable 1",
+     xlab = "Iteration", ylab = "Beta")
+
+# Compute posterior means of beta for all respondents
+beta_means <- apply(betadraws, c(1, 2), mean)
+head(beta_means)  # Display first few respondents' means
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
