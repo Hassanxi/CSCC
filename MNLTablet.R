@@ -1,10 +1,8 @@
-
 ####################################################################################################
 ##   0. Setup & Data Preparation
 ##   1. Model-Free Analysis (Frequencies, Cross-Tabs, Visuals)
 ##   2. Base MNL Model
 ##   3. Interaction MNL Model
-##   4. Hierachical Mixed Logit (MXL) Model
 #####################################################################################################
 
 #####################################################################################################
@@ -45,8 +43,8 @@ load_or_install <- function(package) {
 D
 # List of required packages
 packages <- c("readr", "dplyr", "tidyr", "ggplot2", "doParallel", "foreach", "parallel", "sf", 
-              "stringr", "data.table", "pbapply", "caret", "mlogit", 
-              "bayesm", "rstanarm", "gmnl")
+              "stringr", "data.table", "pbapply", "caret", "mlogit", "Rcpp", "RcppArmadillo",
+              "bayesm")
 lapply(packages, load_or_install)
 
 # STEP 1: Load the raw data
@@ -413,7 +411,7 @@ ggplot(combined_data, aes(x = Price_Bin, fill = Brand)) +
 
 # 2.4 Price vs. Probability of Being Chosen (line plot)
 cat("\n--- Price vs. Probability of Being Chosen ---\n")
-combined_data %>%
+inside_data %>%
   group_by(Price) %>%
   summarise(mean_chosen = mean(Chosen)) %>%
   ggplot(aes(x = Price, y = mean_chosen)) +
@@ -452,6 +450,180 @@ ggplot(combined_data, aes(x = Memory, fill = Brand)) +
   theme_minimal()
 
 cat("\n\n======== END OF MODEL-FREE ANALYSIS ========\n")
+
+
+
+
+# -------------------------------
+# Model-Free Analysis: Frequencies & Descriptive Summaries
+# -------------------------------
+
+# Define a vector of key attribute names
+attributes <- c("Price", "Brand", "Cash_Back", "Resolution", "Memory", "SD_Slot", 
+                "Performance", "Battery_Run_Time", "Connections", 
+                "Sync_to_Smartphone", "Value_Pack", "Equipment", "Display_Size")
+
+cat("\n===========================================\n")
+cat("    FREQUENCIES & PROPORTIONS OF ATTRIBUTES\n")
+cat("===========================================\n")
+for (attr in attributes) {
+  cat("\n----------------------------\n")
+  cat("Attribute:", attr, "\n")
+  cat("----------------------------\n")
+  
+  freq_table <- table(combined_data[[attr]])
+  prop_table <- prop.table(freq_table)
+  
+  cat("Frequency:\n")
+  print(freq_table)
+  cat("\nProportion:\n")
+  print(prop_table)
+}
+
+# -------------------------------
+# Cross-Tabulations
+# -------------------------------
+cat("\n===========================================\n")
+cat("      CROSS-TABULATIONS OF ATTRIBUTES\n")
+cat("===========================================\n")
+
+# Example 1: Cash_Back x Brand
+cat("\n--- Cross-tabulation: Cash_Back x Brand ---\n")
+table_brand_cb <- table(combined_data$Brand, combined_data$Cash_Back)
+print(table_brand_cb)
+cat("\nRow-wise Proportions:\n")
+print(prop.table(table_brand_cb, margin = 1))
+cat("\nColumn-wise Proportions:\n")
+print(prop.table(table_brand_cb, margin = 2))
+
+# Example 2: Price Binning and Cash_Back
+combined_data$Price_Bin <- cut(
+  combined_data$Price,
+  breaks = c(-Inf, 0, 2, 4, 6, 8, Inf),
+  labels = c("0", "0-2", "2-4", "4-6", "6-8", ">8")
+)
+cat("\n--- Cross-tabulation: Price_Bin x Cash_Back ---\n")
+table_price_cb <- table(combined_data$Price_Bin, combined_data$Cash_Back)
+print(table_price_cb)
+cat("\nRow-wise Proportions:\n")
+print(prop.table(table_price_cb, margin = 1))
+cat("\nColumn-wise Proportions:\n")
+print(prop.table(table_price_cb, margin = 2))
+
+# Example 3: Brand x Memory
+cat("\n--- Cross-tabulation: Brand x Memory ---\n")
+table_brand_memory <- table(combined_data$Brand, combined_data$Memory)
+print(table_brand_memory)
+cat("\nRow-wise Proportions:\n")
+print(prop.table(table_brand_memory, margin = 1))
+cat("\nColumn-wise Proportions:\n")
+print(prop.table(table_brand_memory, margin = 2))
+
+# -------------------------------
+# Chosen Alternatives Analysis
+# -------------------------------
+cat("\n===========================================\n")
+cat("        CHOSEN ALTERNATIVES ANALYSIS\n")
+cat("===========================================\n")
+chosen_rows <- combined_data %>% dplyr::filter(Chosen == 1)
+
+cat("\n--- Frequency and Proportion of Chosen Cash_Back Levels ---\n")
+chosen_cb_freq <- table(chosen_rows$Cash_Back)
+print(chosen_cb_freq)
+cat("\nProportion among chosen:\n")
+print(prop.table(chosen_cb_freq))
+cat("\nProportion in the full dataset:\n")
+print(prop.table(table(combined_data$Cash_Back)))
+
+cat("\n--- Price Statistics for Chosen Alternatives ---\n")
+chosen_price_stats <- chosen_rows %>%
+  dplyr::summarise(
+    mean_price   = mean(Price),
+    median_price = median(Price),
+    min_price    = min(Price),
+    max_price    = max(Price)
+  )
+print(chosen_price_stats)
+
+# -------------------------------
+# Additional Summaries: Brand-Level Insights
+# -------------------------------
+cat("\n===========================================\n")
+cat("      BRAND-LEVEL SUMMARIES\n")
+cat("===========================================\n")
+brand_summaries <- combined_data %>%
+  dplyr::group_by(Brand) %>%
+  dplyr::summarise(
+    count          = n(),
+    mean_price     = mean(Price),
+    median_price   = median(Price),
+    chosen_rate    = mean(Chosen),
+    top_memory     = names(sort(table(Memory), decreasing = TRUE))[1],
+    top_display    = names(sort(table(Display_Size), decreasing = TRUE))[1],
+    .groups = "drop"
+  ) %>%
+  dplyr::arrange(desc(count))
+print(brand_summaries)
+
+# -------------------------------
+# Visualizations
+# -------------------------------
+inside_data <- combined_data %>% filter(Brand != "Outside Option")
+
+# Bar plot: Cashback Frequencies
+ggplot(as.data.frame(table(combined_data$Cash_Back)), aes(Var1, Freq)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Frequency of Cashback Levels", x = "Cashback Level", y = "Frequency") +
+  theme_minimal()
+
+# Boxplot: Price by Cash_Back
+ggplot(inside_data, aes(x = Cash_Back, y = Price)) +
+  geom_boxplot(fill = "white") +
+  labs(title = "Price Distribution by Cashback Level", x = "Cashback", y = "Price") +
+  theme_minimal()
+
+# Stacked bar chart: Proportion of Brands across Price Bins
+ggplot(inside_data, aes(x = Price_Bin, fill = Cash_Back)) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Cashback Across Price Bins", x = "Price Bin", y = "Proportion") +
+  theme_minimal()
+
+# Line plot: Price vs. Mean Probability of Choice
+combined_data %>%
+  dplyr::group_by(Price) %>%
+  dplyr::summarise(mean_chosen = mean(Chosen)) %>%
+  ggplot(aes(x = Price, y = mean_chosen)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "blue") +
+  labs(title = "Price vs. Mean Probability of Being Chosen", x = "Price", y = "Mean Probability") +
+  theme_minimal()
+
+cat("\n\n======== END OF MODEL-FREE ANALYSIS ========\n")
+
+
+library(dplyr)
+library(ggplot2)
+
+# Assume combined_data has a variable 'Brand' that indicates alternatives,
+# and that the outside option is labeled "Outside Option".
+# Exclude the outside option for this plot.
+inside_data <- combined_data %>% filter(Brand != "Outside Option")
+
+# Aggregate data by Price and Brand, computing mean probability of being chosen.
+agg_data <- inside_data %>%
+  group_by(Price, Cash_Back) %>%
+  summarise(mean_choice = mean(Chosen), .groups = 'drop')
+
+# Create a refined line plot with points.
+ggplot(agg_data, aes(x = Price, y = mean_choice, color = Cash_Back)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  labs(title = "Price vs. Mean Probability of Being Chosen (Inside Alternatives)",
+       x = "Price (Euros)",
+       y = "Mean Choice Probability") +
+  theme_minimal() +
+  theme(text = element_text(size = 12))
+
 
 #############################################
 ## 2. Model Specification and Estimation (BASE MODEL)
@@ -652,216 +824,124 @@ print(hessian_eigs_int)
 cat("\nIf all these eigenvalues are negative, we have a local maximum.\n")
 
 ####################################################################################################
-##   4. Hierarchical Mixed Logit (MXL) Model
+##   4. Hierarchical Mixed Logit (MXL) Model 
 ####################################################################################################
 
-#-------------------------------------------------------------------------------------
-# In this section, we implement a hierarchical MNL mixture model
-# that captures preference heterogeneity in Price, Brand, and possibly Cashback. 
-# We begin with two mixture components (ncomp=2) to distinguish "High" vs. "Low" 
-# price-sensitivity segments. We’ll start with 1,000 MCMC iterations to test and 
-# debug, then later scale up to ~10k draws once the model is stable.
-# 
-# For ordinal constraints (e.g., memory levels), we plan to use re-parameterization. 
-# The code below sets the stage for random coefficients on Price, Brand, etc. 
-# but does not yet enforce the monotonic transformations—those transformations 
-# would occur when constructing lgtdata$X for each respondent (i.e., 
-# using squared differences or exponentials to guarantee ordering).
-#-------------------------------------------------------------------------------------
+# Set parameters
+attributelabels_tablet <- list(
+  'Brand1', 'Brand2', 'Brand3', 'Brand4', 'Brand5', 'Brand6', 'Brand7',
+  'SystemB', '8Inches', '10Inches', '12Inches', '13Inches', 'HighResolution',
+  '16GB', '32GB', '64GB', '128GB', 'WithoutSDSlot', '1.6GHz', '2.2GHz',
+  '8-12hRuntime', 'WLANUMTS3G', 'WLANLTE4G', 'SphoneSynch',
+  'ValuePack', 'Cover', 'Keyboard', 'Mouse', 'Pencil', '32GBMemoryCard',
+  'KeyboardPencil', 'KeyboardMousePencil', 'Price', '50CashBack',
+  '100CashBack', '150CashBack'
+)
 
+# Define sampling parameters
+sample_fraction <- 0.3      # Proportion of individuals to sample
+set.seed(123)               # Set seed for reproducibility
+n_sample <- round(N * sample_fraction)  # Calculate sample size
 
-runHierarchicalMXL <- function(
-    Data,         # List containing `p` (alternatives), `lgtdata` (individual-level data), optionally `Z`
-    Prior = list(),  # Prior parameters
-    Mcmc = list(R = 1000, keep = 10, w = 0.1, s = 0.1),  # MCMC settings (defaults)
-    nvar_c = 0,   # Number of constrained variables
-    debug = FALSE # Flag for verbose output
-) {
-  ####### Step 1: Input Validation #######
-  if (is.null(Data$p) || is.null(Data$lgtdata)) {
-    stop("Data must include 'p' (alternatives per task) and 'lgtdata' (individual-level data).")
-  }
-  if (!is.null(Data$Z)) {
-    if (nrow(Data$Z) != length(Data$lgtdata)) {
-      stop("Number of rows in Z must match the number of individuals in lgtdata.")
-    }
-    Data$Z <- scale(Data$Z, center = TRUE, scale = FALSE)  # De-mean Z
+# Sample 30% of respondents
+sample_indices <- sample(1:N, n_sample)
+E_Data_mod_sampled <- list(
+  lgtdata = E_Data_mod$lgtdata[sample_indices],  # Subset individual-level data
+  p = E_Data_mod$p,  # Keep number of alternatives
+  t = E_Data_mod$t   # Keep number of tasks
+)
+
+# Verify dataset size
+cat("Sampled Dataset Size:", length(E_Data_mod_sampled$lgtdata), "\n")  # Should be 30% of N
+
+# Prepare data for modeling
+Road <- E_Data_mod_sampled
+yforBayes <- unlist(lapply(Road$lgtdata, function(indiv) indiv$y))
+XforBayes <- do.call(rbind, lapply(Road$lgtdata, function(indiv) indiv$X))
+
+# Aggregate Bayesian Estimation
+out_Bayes <- rmnlIndepMetrop(
+  Data = list(y = yforBayes, X = as.matrix(XforBayes), p = Road$p),
+  Mcmc = list(R = 2000)
+)
+
+# Add column names for betadraw
+colnames(out_Bayes$betadraw) <- colnames(XforBayes)
+
+# Summarize aggregate model results
+cat("\nSummary of Betadraw:\n")
+print(summary(out_Bayes$betadraw))
+print(round(cbind(colMeans(out_Bayes$betadraw), apply(out_Bayes$betadraw, 2, sd)), digits = 3))
+
+# Define sign constraints
+SignRes <- double(ncol(Road$lgtdata[[1]]$X))  # Initialize vector
+SignRes[c(13, 21, 24, 25)] <- 1              # HighResolution, 8-12hRuntime, SphoneSynch, ValuePack (positive)
+SignRes[c(18, 33)] <- -1                     # WithoutSDSlot, Price (negative)
+
+# Unconstrained Model
+out_HB <- rhierMnlRwMixture(
+  Data = list(lgtdata = Road$lgtdata, p = Road$p),
+  Prior = list(ncomp = 1),
+  Mcmc = list(R = 10000, keep = 2)
+)
+
+# Sign-Constrained Model
+out_HB_constr <- rhierMnlRwMixture(
+  Data = list(lgtdata = Road$lgtdata, p = Road$p),
+  Prior = list(ncomp = 1, SignRes = SignRes),
+  Mcmc = list(R = 5000, keep = 2)
+)
+
+# Define utility analysis function
+hilfana <- function(outinput, coefnames, burnin) {
+  # Plot log-likelihood trace
+  plot(outinput$loglike, main = "Log-Likelihood Trace", type = "l"); grid()
+  
+  # Posterior distribution of selected coefficient
+  par(mfrow = c(3, 3))
+  for (i in 1:9) {
+    plot(outinput$betadraw[i, 33, ], type = "l", ylab = coefnames[33], main = paste("Traceplot - Indiv", i)); grid()
   }
   
-  ####### Step 2: Set Defaults for Prior Parameters #######
-  prior_defaults <- list(
-    ncomp = 2,          # Default to 2 mixture components
-    mustarbarc = NULL,  # Not used unless constrained variables are specified
-    nu = 39,            # Degrees of freedom for inverse-Wishart prior on Sigma
-    V = diag(36) * 39   # Scale matrix for inverse-Wishart (identity scaled by df)
+  # Extract and reformat posterior samples after burn-in
+  betadraw_converged <- outinput$betadraw[, , (burnin + 1):dim(outinput$betadraw)[3]]
+  dimnames(betadraw_converged) <- list(NULL, coefnames, NULL)
+  
+  # Posterior density plots
+  par(mfrow = c(3, 3))
+  for (i in 1:9) {
+    plot(density(outinput$betadraw[i, 33, ]), ylab = coefnames[33], main = paste("Density - Indiv", i)); grid()
+  }
+  
+  # Calculate average preferences and heterogeneity
+  beta_exchange <- array(
+    aperm(betadraw_converged, perm = c(1, 3, 2)),
+    dim = c(dim(betadraw_converged)[1] * dim(betadraw_converged)[3], dim(betadraw_converged)[2])
   )
-  Prior <- modifyList(prior_defaults, Prior)
+  colnames(beta_exchange) <- coefnames
   
-  ####### Step 3: Set Defaults for MCMC Parameters #######
-  mcmc_defaults <- list(
-    R = 1000,  # Number of MCMC iterations
-    keep = 10, # Save every 'keep' iterations
-    w = 0.1,   # Weight parameter for Metropolis proposal
-    s = 0.1    # Scaling for random-walk Metropolis
-  )
-  Mcmc <- modifyList(mcmc_defaults, Mcmc)
+  # Mean preferences and heterogeneity
+  mpref <- cbind(colMeans(beta_exchange), apply(beta_exchange, 2, sd))
   
-  ####### Step 4: Pool Data #######
-  ypooled <- unlist(lapply(Data$lgtdata, function(indiv) indiv$y))
-  Xpooled <- do.call(rbind, lapply(Data$lgtdata, function(indiv) indiv$X))
+  # Comparison with aggregate model
+  comppref <- cbind(mpref[, 1], colMeans(out_Bayes$betadraw))
   
-  if (!all(ypooled %in% 1:Data$p)) {
-    stop("Dependent variable y must take values between 1 and p.")
-  }
-  if (!all(sapply(Data$lgtdata, function(indiv) ncol(indiv$X)) == ncol(Xpooled))) {
-    stop("All X matrices must have the same number of columns.")
-  }
+  # Willingness-to-pay analysis
+  compWTP <- round(comppref / -t(array(comppref[nrow(comppref), ], dim = c(2, nrow(comppref)))), digits = 3)
   
-  ####### Step 5: Print Model Details #######
-  if (debug) {
-    cat("\nHierarchical Multinomial Logit (HMNL) Model\n")
-    cat("Number of Alternatives (p):", Data$p, "\n")
-    cat("Number of Variables:", ncol(Xpooled), "\n")
-    cat("Number of Individuals:", length(Data$lgtdata), "\n")
-    cat("Mixture Components (ncomp):", Prior$ncomp, "\n")
-    cat("MCMC Iterations (R):", Mcmc$R, "\n")
-  }
+  # Visualize preference heterogeneity
+  par(mfcol = c(2, 2))
+  plot(density(beta_exchange[, 3]), main = coefnames[3], xlab = coefnames[3])
+  plot(density(beta_exchange[, ncol(beta_exchange)]), main = coefnames[ncol(beta_exchange)],
+       xlab = coefnames[ncol(beta_exchange)])
+  smoothScatter(beta_exchange[, 3], beta_exchange[, ncol(beta_exchange)],
+                xlab = coefnames[3], ylab = coefnames[ncol(beta_exchange)])
   
-  ####### Step 6: Run MCMC Sampling #######
-  set.seed(123)  # Ensure reproducibility
-  model_output <- rhierMnlRwMixture(
-    Data = Data,
-    Prior = Prior,
-    Mcmc = Mcmc
-  )
-  
-  ####### Step 7: Summarize Results #######
-  summary <- list(
-    beta_means = apply(model_output$betadraw, c(2, 3), mean),
-    overall_beta_means = apply(model_output$betadraw, 2, mean),
-    mean_mix_weights = apply(model_output$nmix$probdraw, 2, mean),
-    nmix_draws = head(model_output$nmix$probdraw)
-  )
-  
-  if (debug) {
-    cat("\n--- Overall Beta Means (Collapsed across Individuals) ---\n")
-    print(summary$overall_beta_means)
-    
-    cat("\n--- Mixture Weights (Per MCMC Draw) ---\n")
-    print(summary$nmix_draws)
-    
-    cat("\n--- Average Mixture Weights ---\n")
-    print(summary$mean_mix_weights)
-  }
-  
-  ####### Step 8: Return Output #######
-  return(list(
-    model_output = model_output,
-    summary = summary
-  ))
+  return(list(beta_exchange = beta_exchange, mpref = mpref, comppref = comppref, compWTP = compWTP))
 }
 
-
-
-## 4.1: Prepare the bayesm "Data" list
-## --------------------------------------------------
-## E_Data_mod is assumed to be properly formatted for bayesm (with:
-##   E_Data_mod$p = number of alternatives per choice task (likely 4),
-##   E_Data_mod$lgtdata = list of individual-level data, each containing y and X).
-## If you want to incorporate custom-coded constraints (e.g., memory reparam),
-## you'd transform the X-matrices in E_Data_mod$lgtdata before calling the model.
-
-Data_MXL <- list(
-  p       = E_Data_mod$p,        # number of alternatives (4 in your design)
-  lgtdata = E_Data_mod$lgtdata   # list of individual data with y, X
-  # Optionally: Z = ... if you have any respondent-level covariates
-)
-
-
-## 4.2: Specify Prior and MCMC Settings
-## --------------------------------------------------
-## We'll use two mixture components to capture two latent segments.
-## Start with R=1000 draws for quicker testing. You can later increase to ~10k.
-## (We keep other defaults, e.g., w and s, as moderate values.)
-
-Prior_MXL <- list(
-  ncomp = 2       # Two mixture components
-  # If you want to set more details like mustarbarc, V, etc., do so here
-)
-
-Mcmc_MXL <- list(
-  R    = 1000,  # number of MCMC iterations for test-run
-  keep = 1,     # store every iteration (or e.g., keep=5 to thin draws)
-  w    = 0.1,   # mixing weight in Metropolis proposals
-  s    = 0.1    # scaling factor for random-walk proposals
-)
-
-
-## 4.3: Run the Mixture Model
-## --------------------------------------------------
-## We call our custom wrapper function runHierarchicalMXL(), 
-## which uses bayesm’s rhierMnlRwMixture under the hood. 
-## This function is defined above in your code snippet. 
-## For reference, we pass in Data, Prior, Mcmc, and optionally nvar_c 
-## if we have constrained variables to handle.
-
-mxl_model_output <- runHierarchicalMXL(
-  Data   = Data_MXL,
-  Prior  = Prior_MXL,
-  Mcmc   = Mcmc_MXL,
-  nvar_c = 0  # For now, we haven't yet enforced reparameterized constraints
-)
-
-
-## 4.4: Examine Results
-## --------------------------------------------------
-## Summaries typically include the mixture weights, means, and covariances 
-## for each component. betadraw is a 3D array of dimension (number of draws) x (nvar) x (nrespondents).
-## You can also examine the ncomp draws (nmix) to see how the mixture evolves.
-
-# Basic summary
-summary(mxl_model_output)
-
-# Posterior means of betas across draws:
-beta_means <- apply(mxl_model_output$betadraw, c(2,3), mean) 
-# Dimensions of beta_means: (nvar) x (nrespondents)
-# or if you want means across individuals for each parameter:
-overall_beta_means <- apply(mxl_model_output$betadraw, 2, mean) 
-# This collapses over individuals as well, giving one mean parameter vector.
-
-cat("\n--- Overall Beta Means (Collapsed across Individuals) ---\n")
-print(overall_beta_means)
-
-# Mixture Weights 
-cat("\n--- Mixture Weights (Per MCMC Draw) ---\n")
-# Each row of nmix$probdraw is a set of mixture probabilities for that draw
-head(mxl_model_output$nmix$probdraw)
-
-# You can compute the average mixture probabilities over draws:
-mean_mix_weights <- apply(mxl_model_output$nmix$probdraw, 2, mean)
-cat("\n--- Average Mixture Weights ---\n")
-print(mean_mix_weights)
-
-
-## 4.5: Next Steps
-## --------------------------------------------------
-## 1) Increase R to ~10k draws after verifying stable mixing in the trace plots.
-## 2) Re-parameterize ordinal attributes (e.g., memory) if you need strict monotonic constraints. 
-##    This involves transforming the columns of X in E_Data_mod$lgtdata before calling rhierMnlRwMixture_model1.
-## 3) Evaluate posterior predictive checks, WTP, and run scenario-based simulations 
-##    (changing Price, Brand, or Cashback in the design matrix to see how choice probabilities shift).
-## 4) If you decide to incorporate a budget constraint, you’ll need a custom Rcpp code approach 
-##    (where choices are made unavailable or heavily penalized if price > budget), 
-##    as previously discussed.
-
-cat("\n\n===== END OF HIERARCHICAL MIXED LOGIT CODE =====\n")
-
-
-
-
-
-
-
-
-
+# Analyze results for unconstrained and constrained models
+coefnames <- colnames(Road$lgtdata[[1]]$X)
+hilf_HB <- hilfana(outinput = out_HB, coefnames = coefnames, burnin = 1000)
+hilf_constr <- hilfana(outinput = out_HB_constr, coefnames = coefnames, burnin = 1000)
 
