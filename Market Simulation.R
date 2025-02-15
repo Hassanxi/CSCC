@@ -1,13 +1,5 @@
 ###############################################################################
-## 1. Define Coefficient Names
-###############################################################################
-
-# coefnames <- colnames(E_Data_mod$lgtdata[[1]]$X)
-
-####### CHECK FOR coefnames_R when considering out and BC ####
-
-###############################################################################
-## 2. Define Brand (Including an “Outside” Base)
+## 2. Define Products for MarketSim (Including an “Outside” Base)
 ###############################################################################
 
 ### 1. Coefficient Names
@@ -231,9 +223,9 @@ alt0 <- construct_alternative(
   coefnames   = coefnames
 )
 
-# 4.2 Apple (Brand 2) - iPad Pro-like
+# 4.2 Apple (Brand 1) - iPad Pro-like
 alt_apple <- construct_alternative(
-  brand = "Brand 2", Brand_all = Brand_all,
+  brand = "Brand 1", Brand_all = Brand_all,
   
   screen_level = "12 inches", Screen_all = Screen_all,
   memory_level = "128GB", Memory_all = Memory_all,
@@ -249,13 +241,13 @@ alt_apple <- construct_alternative(
   sync = "S-phone Synch.",
   valuepack = "0",            # No extra bundle
   
-  price_value = 7.99,
+  price_value = 8.99,
   coefnames = coefnames
 )
 
-# 4.3 Samsung (Brand 1) - Galaxy Tab S8-like (Focal Alternative)
+# 4.3 Samsung (Brand 2) - Galaxy Tab S8-like (Focal Alternative)
 alt_samsung <- construct_alternative(
-  brand = "Brand 1", Brand_all = Brand_all,
+  brand = "Brand 2", Brand_all = Brand_all,
   
   screen_level = "10 inches", Screen_all = Screen_all,
   memory_level = "64 GB", Memory_all = Memory_all,
@@ -315,7 +307,7 @@ alt_amazon <- construct_alternative(
   sync = "0",
   valuepack = "0",
   
-  price_value = 1.99,
+  price_value = 0.99,
   coefnames = coefnames
 )
 
@@ -327,7 +319,7 @@ alt_asus <- construct_alternative(
   memory_level = "32 GB", Memory_all = Memory_all,
   processor_level = "1 GHz", Processor_all = Processor_all,
   connectivity_level = "WLAN + UMTS/3G", Connectivity_all = Connectivity_all,
-  equipment_level = "Keyboard + Mouse + Pencil", Equipment_all = Equipment_all,
+  equipment_level = "0", Equipment_all = Equipment_all,
   cashback_level = "No Cash Back", Cashback_all = Cashback_all,
   
   system_os = "OS_B",
@@ -335,7 +327,7 @@ alt_asus <- construct_alternative(
   sdslot = "0",
   battery = "4-8 hours (Base)",
   sync = "0",
-  valuepack = "0",
+  valuepack = "Value Pack",
   
   price_value = 2.99,
   coefnames = coefnames
@@ -349,7 +341,7 @@ rownames(choiceset_full) <- c("Outside", "Tablet 1 (Apple)", "Tablet 2 (Samsung)
 print("Market Choiceset:")
 print(choiceset_full)
 
-# -------------------------------
+# ------------------------------- 
 # (II) Define Functions for Market Simulation and Profit Optimization
 # -------------------------------
 # Function to compute market shares from individual beta draws
@@ -383,9 +375,9 @@ profitcalchelp <- function(price, betamix, X, cost, focal_index) {
 # Function to map Cashback level to an extra cost adjustment.
 # (Here we multiply by 1.5 to scale the incremental cost; adjust as needed.)
 get_cashback_cost <- function(cashback_level) {
-  if (cashback_level == "50 Cash Back") return(0.5 * 1.2)
-  else if (cashback_level == "100 Cash Back") return(1.00 * 1.1)
-  else if (cashback_level == "150 Cash Back") return(1.50 * 1.05)
+  if (cashback_level == "50 Cash Back") return(0.5 * 1)
+  else if (cashback_level == "100 Cash Back") return(1.00 * 1)
+  else if (cashback_level == "150 Cash Back") return(1.50 * 1)
   else return(0)  # "No Cashback"
 }
 
@@ -456,7 +448,7 @@ if(!is.null(colnames(selected_betamix))) {
 
 # Now take a random subset for simulation purposes:
 set.seed(123)  # For reproducibility
-betamix_subset <- selected_betamix[runif(nrow(selected_betamix)) > 0.85, ]
+betamix_subset <- selected_betamix[runif(nrow(selected_betamix)) > 0.7, ]
 betamix_subset <- as.matrix(betamix_subset)
 
 # Now betamix_subset is in the original attribute order,
@@ -473,8 +465,8 @@ betamix_subset <- as.matrix(betamix_subset)
 # Assume: Outside option cost = 0, competitor (Apple) cost = 4.50, focal (Samsung) cost = effective cost,
 # and for the remaining competitors, set some cost (here we use 4.50 for simplicity).
 # We will update Samsung's effective cost later depending on its cashback.
-cost <- c(0, 3.50, 3, 1.70, 0.70, 1.70)
-baseline_cost_vec <- c(0, 3.50, 3, 1.70, 0.70, 1.70)
+cost <- c(0, 4.50, 4.50, 2.90, 0.70, 2.00)
+baseline_cost_vec <- c(0, 4.50, 4.50, 2.90, 0.70, 2.00)
 
 # For the profit optimisation function we will focus on Samsung (row index 3).
 # Test profit calculation at an example price:
@@ -491,7 +483,7 @@ print(example_profit)
 
 # Now optimize using Brent's method.
 opt_result <- optim(
-  par = 6.99,                     # initial guess (Samsung's current price)
+  par = 9.99,                     # initial guess
   fn = profitcalchelp,
   betamix = betamix_subset,
   X = choiceset_full,
@@ -519,7 +511,7 @@ current_cashback_samsung <- alt_samsung["100 Cash Back"]
 
 # Optimize Samsung's price using the convex cost function:
 opt_result_convex <- optim(
-  par = 6.99,  # initial guess for Samsung's price
+  par = 9.99,  # initial guess for Samsung's price
   fn = function(p) {
     profitcalchelp_convex(p, betamix_subset, choiceset_full,
                           cashback_level = current_cashback_samsung,
@@ -559,7 +551,7 @@ compute_choice_probs <- function(choiceset, beta) {
   return(probs)
 }
 
-price_grid <- seq(0.99, 20.99, by = 0.01)
+price_grid <- seq(0.99, 20.99, by = 0.1)
 cashback_grid <- c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back")
 market_size <- 1
 
@@ -654,8 +646,6 @@ cat("Optimal Price and Cashback Combination:\n")
 print(optimal)
 
 
-#######
-
 ###############################################################################
 ## (V) Market Simulation: Price-Demand and Profit Surface with Varying Cashback
 ###############################################################################
@@ -705,9 +695,6 @@ baseline_samsung_attributes <- list(
 sim_results <- expand.grid(Price = price_grid, Cashback = cashback_grid, stringsAsFactors = FALSE)
 sim_results$Samsung_Share <- NA
 sim_results$Profit <- NA
-
-# Define the baseline cost vector for all alternatives.
-baseline_cost_vec <- c(0, 3.50, 3, 1.70, 0.70, 1.70)  # [Outside, Apple, Samsung, Huawei, Amazon, Asus]
 
 # Loop over every combination in the grid.
 for (i in 1:nrow(sim_results)) {
@@ -786,14 +773,107 @@ cat("Optimal Price and Cashback Combination (Convex Cost):\n")
 print(optimal)
 
 
+#!!! calculate costs here
+
+# Extract the optimal combination from the simulation results
+optimal_price <- optimal$Price
+optimal_cashback <- optimal$Cashback
+
+# Reconstruct Samsung's alternative using the optimal price and cashback
+alt_samsung_optimal <- do.call(construct_alternative, c(
+  baseline_samsung_attributes[c("brand", "Brand_all",
+                                "screen_level", "Screen_all",
+                                "memory_level", "Memory_all",
+                                "processor_level", "Processor_all",
+                                "connectivity_level", "Connectivity_all",
+                                "equipment_level", "Equipment_all",
+                                "system_os", "resolution", "sdslot",
+                                "battery", "sync", "valuepack",
+                                "coefnames")],
+  list(
+    cashback_level = optimal_cashback,
+    Cashback_all = Cashback_all,
+    price_value = optimal_price
+  )
+))
+
+# Build the complete choiceset, replacing Samsung's alternative with the optimal version.
+choiceset_optimal <- rbind(
+  alt0,
+  alt_apple,
+  alt_samsung_optimal,
+  alt_huawei,
+  alt_amazon,
+  alt_asus
+)
+
+# Compute predicted market shares using the average beta vector.
+beta_mean_used <- colMeans(selected_betamix)
+optimal_shares <- compute_choice_probs(choiceset_optimal, beta_mean_used)
+
+# Report the predicted market shares.
+cat("Predicted Market Shares at the Optimal Combination:\n")
+print(optimal_shares)
 
 
+# Extract optimal combination parameters for Samsung from the simulation results
+optimal_price <- optimal$Price         # e.g., 12.18
+optimal_cashback <- optimal$Cashback    # e.g., "150 Cash Back"
 
+# Reconstruct Samsung’s optimal alternative using the optimal price and cashback.
+alt_samsung_optimal <- do.call(construct_alternative, c(
+  baseline_samsung_attributes[c("brand", "Brand_all",
+                                "screen_level", "Screen_all",
+                                "memory_level", "Memory_all",
+                                "processor_level", "Processor_all",
+                                "connectivity_level", "Connectivity_all",
+                                "equipment_level", "Equipment_all",
+                                "system_os", "resolution", "sdslot",
+                                "battery", "sync", "valuepack",
+                                "coefnames")],
+  list(
+    cashback_level = optimal_cashback,
+    Cashback_all = Cashback_all,
+    price_value = optimal_price
+  )
+))
+
+# Build the complete choiceset with all alternatives.
+choiceset_optimal <- rbind(
+  alt0,
+  alt_apple,
+  alt_samsung_optimal,
+  alt_huawei,
+  alt_amazon,
+  alt_asus
+)
+
+# Compute predicted market shares using the average beta vector.
+beta_mean_used <- colMeans(selected_betamix)
+optimal_shares <- compute_choice_probs(choiceset_optimal, beta_mean_used)
+
+# Calculate profit for Samsung at the optimal combination using the joint profit function.
+# Note: 'pricefull_baseline' is the vector of baseline prices.
+optimal_profit_out <- profitcalc_joint(
+  price = optimal_price,
+  betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.5, ],
+  chset = choiceset_BC_noprice,
+  cost = cost,
+  bindex = 3,  # Samsung is the second row in the choiceset.
+  pricefull = pricefull_baseline,
+  cashback_option = optimal_cashback
+)
+
+# Output the results.
+cat("Predicted Market Shares at the Optimal Combination:\n")
+print(optimal_shares)
+cat("Profit for Samsung at the Optimal Combination:\n")
+print(optimal_profit_out$profits)
 
 ###############################################################################
 
 ###############################################################################
-## COMPETITIVE EQUILIBRIUM: Optimal Pricing (Static Nash Equilibrium)
+## COMPETITIVE EQUILIBRIUM: Optimal Pricing (Nash Equilibrium)
 ## Each firm (tablet brand) chooses its price simultaneously to maximize profit.
 ## The equilibrium is reached when no firm wishes to deviate.
 ###############################################################################
@@ -959,7 +1039,7 @@ ggplot(price_history_melt, aes(x = Iteration, y = Price, color = Firm)) +
 
 
 ###############################################################################
-## COMPETITIVE EQUILIBRIUM: Optimal Pricing (Static Nash Equilibrium)
+## COMPETITIVE EQUILIBRIUM: Optimal Pricing ( Nash Equilibrium)
 ## Each firm (tablet brand) chooses its price simultaneously to maximize profit.
 ## The equilibrium is reached when no firm wishes to deviate.
 ###############################################################################
@@ -1141,27 +1221,6 @@ ggplot(price_history_melt, aes(x = Iteration, y = Price, color = Firm)) +
   labs(title = "Convergence of Prices (Nash Equilibrium with Convex Costs)",
        x = "Iteration", y = "Price (Euros)") +
   theme_minimal()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1394,11 +1453,6 @@ print("Cashback decision history (each row is the cashback option chosen by firm
 print(cashback_history)
 
 
-
-
-
-
-
 ###############################################################################
 ## Joint Price & Cashback Optimization for Competitive Equilibrium (Convex Cost)
 ###############################################################################
@@ -1418,12 +1472,12 @@ update_cashback <- function(row, cb) {
   return(row)
 }
 
-# 2) Function to map a cashback string to its incremental cost (unchanged from your earlier approach).
+
 get_cashback_cost <- function(cashback_level) {
-  if (cashback_level == "50 Cash Back") return(0.5 * 1.5)
-  else if (cashback_level == "100 Cash Back") return(1.00 * 1.5)
-  else if (cashback_level == "150 Cash Back") return(1.50 * 1.5)
-  else return(0)  # No Cashback
+  if (cashback_level == "50 Cash Back") return(0.5 * 1)
+  else if (cashback_level == "100 Cash Back") return(1.00 * 1)
+  else if (cashback_level == "150 Cash Back") return(1.50 * 1)
+  else return(0)  # "No Cashback"
 }
 
 # 3) Convex cost function that “punishes” high prices.
@@ -1694,46 +1748,52 @@ ggplot(combined_history, aes(x = Iteration, y = Price,
 
 
 
+###############################################################################
+## Price Maximization: Optimal Pricing (Static Environment)
+## (Budget Constrained Approach)
+###############################################################################
+
+###'!!!! CORRECT TO BC MODEL !!! ##### -----
 
 
+# Same Choiceset but with outside good as last row
+# (Rows are ordered as: Outside, Apple, Samsung, Huawei, Amazon, Asus)
+choiceset_BC <- rbind (alt_apple, alt_samsung, alt_huawei, alt_amazon, alt_asus, alt0)
+rownames(choiceset_BC) <- c("Tablet 1 (Apple)", "Tablet 2 (Samsung)", 
+                              "Tablet 3 (Huawei)", "Tablet 4 (Amazon)", "Tablet 5 (Asus)", "Outside") 
+print("Market Choiceset:")
+print(choiceset_BC)
+choiceset_BC <- choiceset_BC[, c(33, 25, 24, 21, 18, 13, 14, 15, 16, 17, 19, 20, 22, 23, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 1:12)] # reorder columns to match order of hilf_BC with price in the first column
+print(choiceset_BC)
 
+probabilities_BC_BLP_log_cpp(hilf_BC$betaexchange, choiceset_BC, pr)
 
-####NOT WORKING####
-##############################################
-## Counterfactual Simulation for the Budget-Constrained Model (BLP-type)
-##############################################
+#Price Grid for price changes of Samsung
+price_grid_BC <- seq(0.99, 20.99, by = 0.5)
 
-competitor_prices <- c(Price = 7.99, "Tablet 1 (Apple)" = 7.99, 
-                       "Tablet 2 (Samsung)" = 6.99, "Tablet 3 (Huawei)" = 3.99, 
-                       "Tablet 4 (Amazon)" = 0.99, "Tablet 5 (Asus)" = 2.99)
-
-# Baseline design matrix for all alternatives, excluding the price column.
-design_fixed <- choiceset_full[, -33]
-design_fixed = cbind(c(0, 7.99, 6.99, 3.99, 0.99, 2.99),design_fixed)
-
-design_fixed
-pr = 1
-probabilities_BC_BLP_log_cpp(hilf_BC$betaexchange, design_fixed, pr)
-
-prgrid <- seq(0.99, 20.99, by = 0.20)
-
-
-pricedemand <- function(prgrid,beta,chset,pr){
+#pricedemand_BC function to calculate the market shares for all competitors for each of the price points in price_grid_BC
+pricedemand_BC <- function(prgrid,beta,chset,pr){
   shares = matrix(double(6*length(prgrid)),ncol=6) 
   for (i in 1:length(prgrid)){
-    chset[1,1]=prgrid[i]
+    chset[2,1]=prgrid[i] # update price of Samsung (Row 2)
     shares[i,]=probabilities_BC_BLP_log_cpp(beta, chset, pr)
   }
   shares
 }
 
+#market shares for all competitors for each price point in price_grid_BC
+demand_BC = pricedemand_BC(prgrid=price_grid_BC,beta=hilf_BC$betaexchange,chset=choiceset_BC,pr=pr)
 
-demand_BC = pricedemand(prgrid=prgrid,beta=hilf_BC$betaexchange,chset=design_fixed,pr=pr)
+#Plot price demand curves for ,i competitor. price_grid_BC represents the price of Samsung. 
+#The y-axis represents the market share of each competitor for each price point.
+for (i in 1:6){
+  plot(price_grid_BC,demand_BC[,i],type='l',main=rownames(choiceset_BC)[i]);grid()
+  
+}
 
 
-plot(prgrid,demand_BC[,1],type='l')
-
-
+choiceset_BC_noprice <- choiceset_BC[, -1]  # Removes price from choiceset to reduce hassle with adjusting the rest of the code, price now defined in the functions themselves
+print(choiceset_BC_noprice)
 
 
 ###optimal monopolist price from call to optimizer
@@ -1743,160 +1803,920 @@ plot(prgrid,demand_BC[,1],type='l')
 profitcalc <- function(price,betamix,chset_,cost,bindex,pricefull){
   pricefull[bindex]=price
   chset=cbind(pricefull,chset_)
+  #print(colnames(choiceset_BC))
+  #print(head(choiceset_BC))
+  #print(colnames(cbind(pricefull, choiceset_BC_noprice)))
+  #print(head(cbind(pricefull, choiceset_BC_noprice)))
+  #print(paste("Updating row:", bindex, "with price:", price))
+  #print(pricefull)
   share = probabilities_BC_BLP_log_cpp(betamix, chset, pr=1)
-  profits = share * (pricefull - cost)
+  profits = share * (pricefull - cost) #profitfunction,, marketsize = 1
   return(list(profits=profits, share=share))
 }
 
-profitcalc(price=1500/1000,
-           betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.99,],
-           chset_=choiceset_,
-           cost=c(450,450,0)/1000,
-           bindex=1,
-           pricefull=c(800,800,0)/1000)
+profitcalc(price=6.99, #starting price
+           betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.7,], #adjust the .99 later, only for testruns .99
+           chset_=choiceset_BC_noprice, #choiceset without prices
+           cost=c(4.50, 4.50, 2.90, 0.70, 2.00, 0),
+           bindex=2, #Samsung 2nd row
+           pricefull=c(8.99, 6.99, 3.99, 0.99, 2.99, 0))
 
-
-
-
+# helper function for optimization
 profitcalchelp <- function(price,betamix,chset_,cost,bindex,pricefull){
   profitcalc(price,betamix,chset_,cost,bindex,pricefull)$profits[bindex]}
 
 
 
-out=optim(par=1000/1000, fn=profitcalchelp, gr=NULL, 
-          betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.2,],
-          chset_=choiceset_,
-          cost=c(450,450,0)/1000,
-          bindex=1,
-          pricefull=c(800,800,0)/1000,
-          hessian = TRUE, control=list(fnscale=-1), method = "Brent", lower = 0, upper = 3)
+pr_opt_SE=optim(par=6.99, fn=profitcalchelp, gr=NULL, 
+          betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.60,],
+          chset_=choiceset_BC_noprice,
+          cost=c(4.50, 4.50, 2.90, 0.70, 2.00, 0),
+          bindex=2,
+          pricefull=c(8.99, 6.99, 3.99, 0.99, 2.99, 0),
+          hessian = TRUE, control=list(fnscale=-1), method = "Brent", lower = 0, upper = 20)
 
 
 
 #profit maximizing price
-outM = matrix(c(out$par,out$value,out$hessian),ncol=3)
-colnames(outM) <- c("optimal price", "profit", "hessian")
-outM
+pr_opt_SEM = matrix(c(pr_opt_SE$par,pr_opt_SE$value,pr_opt_SE$hessian),ncol=3)
+colnames(pr_opt_SEM) <- c("optimal price", "profit", "hessian")
+pr_opt_SEM
 
 
-profitcalc(price=outM[1],
-           betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.7,],
-           chset_=choiceset_,
-           cost=c(450,450,0)/1000,
-           bindex=1,
-           pricefull=c(800,800,0)/1000)
+profitcalc(price=pr_opt_SEM[1],
+           betamix=hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>.6,],
+           chset_=choiceset_BC_noprice,
+           cost=c(4.50, 4.50, 2.90, 0.70, 2.00, 0),
+           bindex=2,
+           pricefull=c(7.99, 6.99, 3.99, 0.99, 2.99, 0))
+
+###############################################################################
+## JOINT OPTIMIZATION: Price & Cashback for Samsung (Static Environment)
+## (Budget-Constrained Approach with Fixed Costs)
+###############################################################################
+
+# --- Assumptions ---
+cost <- c(4.50, 4.50, 2.90, 0.70, 2.00, 0)  # [Apple, Samsung, Huawei, Amazon, Asus, Outside]
+
+pricefull_baseline <- c(8.99, 6.99, 3.99, 0.99, 2.99, 0)  # same ordering as above
 
 
+# --- Helper Function: Update Cashback ---
+# Defined above
+#update_cashback <- function(row, cb) {
+  # Reset the three cashback indicators:
+#  row["50 Cash Back"] <- 0
+ # row["100 Cash Back"] <- 0
+  #row["150 Cash Back"] <- 0
+  #if (cb == "50 Cash Back") {
+  #  row["50 Cash Back"] <- 1
+#  } else if (cb == "100 Cash Back") {
+#    row["100 Cash Back"] <- 1
+#  } else if (cb == "150 Cash Back") {
+#    row["150 Cash Back"] <- 1
+#  }
+  # "No Cashback" leaves all as 0.
+#  return(row)
+#}
 
 
+# --- Joint Profit Calculation Function ---
+# This function computes the profit for Samsung given a candidate price and a chosen cashback option.
+# It updates the Samsung row in the market choiceset accordingly.
+profitcalc_joint <- function(price, betamix, chset, cost, bindex, pricefull, cashback_option) {
+  # Update the price vector: set Samsung's price (bindex) to candidate price.
+  pricefull[bindex] <- price
+  # Make a copy of the choiceset (which does NOT include the price column, i.e. choiceset_BC_noprice)
+  chset_updated <- chset
+  # Update the cashback indicators for Samsung's row using the helper function.
+  chset_updated[bindex, ] <- update_cashback(chset_updated[bindex, ], cashback_option)
+  # Reconstruct the full design matrix by column-binding the price vector with the non-price attributes.
+  full_design <- cbind(pricefull, chset_updated)
+  # Compute market shares using the C++ function (assumed to take parameters: beta draws, design matrix, pr)
+  share <- probabilities_BC_BLP_log_cpp(betamix, full_design, pr = 1)
+  # Compute profit for Samsung:
+  # Profit = (Samsung's price - Samsung's cost) * (Samsung's market share * market_size)
+  profit <- share[bindex] * (pricefull[bindex] - cost[bindex])
+  return(list(profits = profit, share = share))
+}
+
+# --- Helper Wrapper for Optimization ---
+# Returns only the profit for Samsung (the bindex-th element).
+profitcalchelp_joint <- function(price, betamix, chset, cost, bindex, pricefull, cashback_option) {
+  profitcalc_joint(price, betamix, chset, cost, bindex, pricefull, cashback_option)$profits
+}
+
+# --- Joint Optimization: Grid Search Over Cashback Options ---
+# Define the discrete set of cashback options:
+cashback_options <- c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back")
+
+# Initialize a list to store optimization results for each cashback option.
+results_joint <- list()
+
+# For each cashback option, optimize Samsung's price (Samsung is row 2).
+for (cb in cashback_options) {
+  opt_res <- optim(
+    par = pricefull_baseline[2],  # starting price for Samsung
+    fn = profitcalchelp_joint,
+    betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.90, ],  # select a random subset for simulation
+    chset = choiceset_BC_noprice,   # choiceset without the price column
+    cost = cost,
+    bindex = 2,                    # Samsung is row 2 in choiceset_BC_noprice
+    pricefull = pricefull_baseline,
+    cashback_option = cb,
+    hessian = TRUE,
+    control = list(fnscale = -1),  # maximize profit
+    method = "Brent",
+    lower = 0,
+    upper = 20
+  )
+  results_joint[[cb]] <- list(
+    optimal_price = opt_res$par,
+    profit = opt_res$value,
+    hessian = opt_res$hessian
+  )
+}
+
+# Combine the results into a data frame for easy comparison.
+results_df <- do.call(rbind, lapply(names(results_joint), function(cb) {
+  data.frame(Cashback = cb,
+             optimal_price = results_joint[[cb]]$optimal_price,
+             profit = results_joint[[cb]]$profit)
+}))
+print("Joint Optimization Results for Samsung:")
+print(results_df)
+
+# Identify the best (price, cashback) combination (i.e. highest profit)
+optimal_result <- results_df[which.max(results_df$profit), ]
+cat("Optimal Price and Cashback Combination for Samsung:\n")
+print(optimal_result)
+
+# Optionally, compute and display the profit and market share at the optimal combination.
+optimal_profit_out <- profitcalc_joint(
+  price = optimal_result$optimal_price,
+  betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.5, ],
+  chset = choiceset_BC_noprice,
+  cost = cost,
+  bindex = 2,
+  pricefull = pricefull_baseline,
+  cashback_option = optimal_result$Cashback
+)
+cat("Profit and Market Share at the Optimal Combination:\n")
+print(optimal_profit_out)
+
+###############################################################################
+## (VI) COMPETITIVE EQUILIBRIUM: Optimal Pricing (Nash Equilibrium)
+## (Budget-Constrained Approach with Fixed Costs)
+###############################################################################
 
 
+# 1) Define a Best-Response function that optimizes brand 'firm_index' price 
+#    while other brands' prices remain fixed.
 
-
-
-
-
-
-
-
-
-############
-# Budget-Constrained Model (BC) for Profit Maximization
-
-compute_prob_BC <- function(prices, A, beta) {
-  # prices: a numeric vector of prices for all alternatives.
-  # A: a design matrix for the alternatives (non-price attributes). 
-  #    Its row names (or order) should match the order of alternatives.
-  # beta: a named vector of parameters from the BC model.
-  #       It should include "log_budget" and "log-alpha", plus other attribute coefficients.
-  # Effective budget B is computed as:
-  B <- exp(beta["log_budget"])
-  alpha <- beta["log-alpha"]
+best_response_BC <- function(firm_index,
+                             current_pricefull,
+                             betamix,
+                             chset_noprice,
+                             cost_vec,
+                             lower = 0,
+                             upper = 25) {
   
-  # Initialize a utility vector
-  u <- numeric(length(prices))
+  # Helper function for optim:
+  profit_fun <- function(candidate_price) {
+    # Use existing 'profitcalchelp' with brand 'firm_index'
+    # to get the profit of this brand at candidate_price.
+    profitcalchelp(
+      price = candidate_price,
+      betamix = betamix,
+      chset_ = chset_noprice,
+      cost = cost_vec,
+      bindex = firm_index,
+      pricefull = current_pricefull
+    )
+  }
   
-  # For each alternative j, if price is less than budget, compute utility;
-  # otherwise, assign utility -Inf.
-  for (j in 1:length(prices)) {
-    if (prices[j] < B) {
-      # The non-price attributes are multiplied by their coefficients.
-      # Assume that the names of the attribute coefficients in beta match the column names of A.
-      u[j] <- as.numeric(A[j, ] %*% beta[names(beta) != "log_budget" & names(beta) != "log-alpha"]) +
-        alpha * log(B - prices[j])
-    } else {
-      u[j] <- -Inf
+  # Starting price for brand 'firm_index'
+  start_price <- current_pricefull[firm_index]
+  
+  # Use Brent’s method to maximize profit for brand 'firm_index'
+  res <- optim(
+    par = start_price,
+    fn = profit_fun,
+    method = "Brent",
+    lower = lower,
+    upper = upper,
+    control = list(fnscale = -1)
+  )
+  return(res$par)   # Return the optimal price
+}
+
+# 2) Iterative Algorithm to reach a Nash Equilibrium in prices
+#    for the five inside firms (rows 1–5). Row 6 = Outside (static).
+#    We keep competitor rows (Apple, Huawei, Amazon, Asus) active as well.
+
+# Initialize a working copy of pricefull (use your baseline as a start).
+current_pricefull <- pricefull_baseline
+
+# Set parameters for iterative procedure
+tolerance <- 0.1
+max_iter <- 10
+convergence <- FALSE
+iteration <- 1
+
+# We store the price history for each iteration to see if it converges
+price_history <- matrix(NA, nrow = max_iter, ncol = 5)  # 5 inside firms
+inside_firms <- 1:5  # Row indices for Apple=1, Samsung=2, Huawei=3, Amazon=4, Asus=5
+
+colnames(price_history) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus")
+
+while (!convergence && iteration <= max_iter) {
+  
+  new_prices <- current_pricefull
+  
+  # For each brand i in 1..5 (outside is row 6, not a decision-maker),
+  # compute its best-response price given current prices of the others.
+  for (i in inside_firms) {
+    new_prices[i] <- best_response_BC(
+      firm_index = i,
+      current_pricefull = new_prices,  # pass the updated vector
+      betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.7, ],  # random subset for simulation
+      chset_noprice = choiceset_BC_noprice,
+      cost_vec = cost,
+      lower = 0,
+      upper = 25
+    )
+  }
+  
+  # Record the updated prices (excluding outside option)
+  price_history[iteration, ] <- new_prices[inside_firms]
+  
+  # Check if maximum change across the inside firms is below tolerance
+  price_change <- max(abs(new_prices[inside_firms] - current_pricefull[inside_firms]))
+  cat("Iteration", iteration, "max price change:", price_change, "\n")
+  
+  if (price_change < tolerance) {
+    convergence <- TRUE
+  } else {
+    current_pricefull <- new_prices
+  }
+  
+  iteration <- iteration + 1
+}
+
+# Trim the price_history to the number of actual iterations
+price_history <- price_history[1:(iteration - 1), ]
+
+# The final prices in current_pricefull are your Nash Equilibrium
+equilibrium_prices <- current_pricefull
+names(equilibrium_prices) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus", "Outside")
+
+cat("\nNash Equilibrium Prices (Budget-Constrained, Fixed Costs):\n")
+print(equilibrium_prices)
+
+# 3) Compute Equilibrium Profits and Market Shares
+final_profit_shares <- list()
+for (i in inside_firms) {
+  # For each brand i, we compute profit & share using 'profitcalc'
+  out_res <- profitcalc(
+    price = equilibrium_prices[i],
+    betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.7, ],
+    chset_ = choiceset_BC_noprice,
+    cost = cost,
+    bindex = i,
+    pricefull = equilibrium_prices
+  )
+  final_profit_shares[[names(equilibrium_prices)[i]]] <- out_res
+}
+
+cat("\nEquilibrium Profit and Market Shares for Each Firm (Rows 1–5):\n")
+print(final_profit_shares)
+
+# 4) Visualize Convergence
+library(ggplot2)
+library(reshape2)
+price_history_df <- data.frame(price_history)
+price_history_df$Iteration <- 1:nrow(price_history_df)
+price_history_melt <- melt(price_history_df, id.vars = "Iteration", variable.name = "Firm", value.name = "Price")
+
+ggplot(price_history_melt, aes(x = Iteration, y = Price, color = Firm)) +
+  geom_line(linewidth = 1.0) +
+  geom_point() +
+  labs(
+    title = "Convergence of Prices (Budget-Constrained Nash Equilibrium)",
+    x = "Iteration",
+    y = "Price (Euros)"
+  ) +
+  theme_minimal()
+
+
+###############################################################################
+## JOINT OPTIMIZATION: Price & Cashback for Samsung (Base  Environment)
+## (Budget-Constrained Approach with Fixed Costs)
+###############################################################################
+
+# --- Assumptions ---
+# - The market choiceset "choiceset_BC" (with columns ordered as in hilf_BC; Price in column 1) 
+#   is defined and contains the alternatives in the following order:
+#   Row 1: Tablet 1 (Apple)
+#   Row 2: Tablet 2 (Samsung)
+#   Row 3: Tablet 3 (Huawei)
+#   Row 4: Tablet 4 (Amazon)
+#   Row 5: Tablet 5 (Asus)
+#   Row 6: Outside
+#
+# - choiceset_BC_noprice is the same matrix but with the Price column removed.
+#
+# - pricefull_baseline is the vector of baseline prices (e.g., c(8.99, 6.99, 3.99, 0.99, 2.99, 0)).
+#
+# - cost_fixed is the fixed cost vector (which includes the cashback cost for the baseline promotion),
+#   for example: cost_fixed <- c(4.50, 4.50, 2.90, 0.70, 2.00, 0)
+#
+# - For Samsung, the baseline promotion is assumed to be "100 Cash Back".
+#
+# - The function probabilities_BC_BLP_log_cpp(beta, design_matrix, pr) computes the market share vector.
+#
+# - profitcalc_joint() and its helper profitcalchelp_joint() below compute profit for Samsung
+#   given a candidate price and a candidate cashback option.
+#
+# --- Define a Revised Cashback Cost Function ---
+get_cashback_cost <- function(cashback_level) {
+  if (cashback_level == "50 Cash Back") return(0.5 * 1)
+  else if (cashback_level == "100 Cash Back") return(1.00 * 1)
+  else if (cashback_level == "150 Cash Back") return(1.50 * 1)
+  else return(0)  # "No Cashback"
+}
+
+# --- Revised Joint Profit Calculation Function ---
+# This function computes the profit for Samsung (focal alternative) given a candidate price 
+# and candidate cashback option.
+profitcalc_joint <- function(price, betamix, chset_joint, cost_fixed, bindex, pricefull, candidate_cb, baseline_cb_current) {
+  # bindex: row index for Samsung in the choiceset and price vector.
+  # pricefull: full price vector (for all alternatives).
+  # baseline_cb_current: the baseline cashback option that is embedded in cost_fixed.
+  
+  # First, extract Samsung's baseline cost by removing the cost of its current (baseline) cashback.
+  baseline_cost_S <- cost_fixed[bindex] - get_cashback_cost(baseline_cb_current)
+  
+  # Then, compute the effective cost under the candidate cashback:
+  effective_cost_S <- baseline_cost_S + get_cashback_cost(candidate_cb)
+  
+  # Update the price vector with the candidate price for Samsung:
+  pricefull_updated <- pricefull
+  pricefull_updated[bindex] <- price
+  
+  # Update the choiceset for Samsung:
+  # chset_joint is the non-price portion of the design matrix.
+  chset_updated <- chset_joint
+  chset_updated[bindex, ] <- update_cashback(chset_updated[bindex, ], candidate_cb)
+  
+  # Reconstruct the full design matrix by binding the price vector with the non-price attributes.
+  design_full <- cbind(pricefull_updated, chset_updated)
+  
+  # Compute market shares using the C++ function.
+  share_vec <- probabilities_BC_BLP_log_cpp(betamix, design_full, pr = 1)
+  
+  # Profit for Samsung = (price - effective cost) * (market share * market size).
+  # (Market size is assumed to be 1 in these calculations; adjust if needed.)
+  profit_S <- share_vec[bindex] * (pricefull_updated[bindex] - effective_cost_S)
+  
+  return(list(profits = profit_S, share = share_vec[bindex]))
+}
+
+# --- Helper Wrapper Function for Optimization ---
+profitcalchelp_joint <- function(price, betamix, chset_joint, cost_fixed, bindex, pricefull, candidate_cb, baseline_cb_current) {
+  profitcalc_joint(price, betamix, chset_joint, cost_fixed, bindex, pricefull, candidate_cb, baseline_cb_current)$profits
+}
+
+# --- Define the Set of Candidate Cashback Options ---
+candidate_cb_options <- c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back")
+
+# --- Set Up Baseline Vectors for Optimization ---
+# Baseline price vector (ordered as in choiceset_BC):
+pricefull_baseline <- c(8.99, 6.99, 3.99, 0.99, 2.99, 0)
+# Fixed cost vector (including the baseline cashback cost, assumed embedded):
+cost_fixed <- c(4.50, 4.50, 2.90, 0.70, 2.00, 0)
+# For Samsung (row 2), the baseline cashback is "100 Cash Back".
+baseline_cb_Samsung <- "100 Cash Back"
+
+# --- Joint Optimization: Grid Search Over Candidate Cashback Options ---
+# For each candidate cashback option, optimize the price for Samsung using Brent's method.
+results_joint <- list()
+
+for (cb_opt in candidate_cb_options) {
+  opt_res_joint <- optim(
+    par = pricefull_baseline[2],  # starting price for Samsung
+    fn = function(p) {
+      profitcalchelp_joint(p,
+                           betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.9, ],
+                           chset_joint = choiceset_BC_noprice,
+                           cost_fixed = cost_fixed,
+                           bindex = 2,
+                           pricefull = pricefull_baseline,
+                           candidate_cb = cb_opt,
+                           baseline_cb_current = baseline_cb_Samsung)
+    },
+    method = "Brent",
+    lower = 0,
+    upper = 20,
+    control = list(fnscale = -1)
+  )
+  results_joint[[cb_opt]] <- list(
+    optimal_price = opt_res_joint$par,
+    profit = opt_res_joint$value,
+    hessian = opt_res_joint$hessian,
+    candidate_cashback = cb_opt
+  )
+}
+
+# Combine the results into a data frame for comparison.
+results_joint_df <- do.call(rbind, lapply(names(results_joint), function(cb) {
+  data.frame(Cashback = cb,
+             optimal_price = results_joint[[cb]]$optimal_price,
+             profit = results_joint[[cb]]$profit)
+}))
+print("Joint Optimization Results for Samsung (Price & Cashback):")
+print(results_joint_df)
+
+# Identify the best (price, cashback) combination based on profit.
+optimal_result_joint <- results_joint_df[which.max(results_joint_df$profit), ]
+cat("Optimal Price and Cashback Combination for Samsung:\n")
+print(optimal_result_joint)
+
+# Optionally, compute and display the profit and market share at the optimal combination.
+optimal_profit_out_joint <- profitcalc_joint(
+  price = optimal_result_joint$optimal_price,
+  betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange)) > 0.7, ],
+  chset_joint = choiceset_BC_noprice,
+  cost_fixed = cost_fixed,
+  bindex = 2,
+  pricefull = pricefull_baseline,
+  candidate_cb = optimal_result_joint$Cashback,
+  baseline_cb_current = baseline_cb_Samsung
+)
+cat("Profit and Market Share at the Optimal Joint Combination:\n")
+print(optimal_profit_out_joint)
+
+
+
+# 5) Evaluate final equilibrium profits & shares for each inside brand
+final_outcome <- list()
+for (i in 1:5) {
+  # effective cost: baseline_cost_vec[i] + get_cashback_cost(equilibrium_cb[i])
+  local_cost <- baseline_cost_vec
+  local_cost[i] <- baseline_cost_vec[i] + get_cashback_cost(equilibrium_cb[i])
+  
+  # build design matrix
+  local_chset <- choiceset_BC_noprice
+  local_chset[i, ] <- update_cashback(local_chset[i, ], equilibrium_cb[i])
+  design_equil <- cbind(equilibrium_prices, local_chset)
+  
+  share_vec <- probabilities_BC_BLP_log_cpp(hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>0.7, ],
+                                            design_equil, pr=1)
+  brand_profit <- share_vec[i] * (equilibrium_prices[i] - local_cost[i])
+  
+  final_outcome[[names(equilibrium_prices)[i]]] <- list(
+    Share  = share_vec[i],
+    Profit = brand_profit
+  )
+}
+
+cat("\nEquilibrium Market Shares and Profits:\n")
+print(final_outcome)
+
+#### Optional: Plot Price Convergence Over Iterations ####
+# If you want to see how price evolves across iterations:
+library(reshape2)
+library(ggplot2)
+price_history_df <- as.data.frame(price_history_joint)
+price_history_df$Iteration <- 1:nrow(price_history_df)
+price_melt <- melt(price_history_df, id.vars = "Iteration", variable.name = "Firm", value.name = "Price")
+
+ggplot(price_melt, aes(x = Iteration, y = Price, color = Firm)) +
+  geom_line(linewidth=1.0) +
+  geom_point() +
+  labs(title = "Convergence of Prices (Joint Price+Cashback Nash Equilibrium)",
+       x = "Iteration",
+       y = "Price (Euros)") +
+  theme_minimal()
+
+# Also possible to track CB changes over time in cb_history_joint.
+
+###############################################################################
+## (VII) JOINT COMPETITIVE OPTIMIZATION OF PRICE & CASHBACK (Nash Equilibrium)
+## (Budget-Constrained Approach with Per-Brand Baseline Cost + Cashback)
+###############################################################################
+
+########### 1. Cost Function for Cashbacks ###########
+# Example: For demonstration, we define the incremental cost for each 
+# distinct cashback level. We multiply the nominal cashback amount by 1.1 
+# to reflect overhead or partial redemption.
+get_cashback_cost <- function(cashback_level) {
+  if (cashback_level == "50 Cash Back")   return(0.50 * 1)  # 55 euros
+  else if (cashback_level == "100 Cash Back") return(1.00 * 1) # 110 euros
+  else if (cashback_level == "150 Cash Back") return(1.50 * 1) # 165 euros
+  else return(0)  # "No Cashback"
+}
+
+# You could also scale them differently if your currency units are in hundreds, 
+# or if partial redemption is expected. 
+# For instance:
+# if (cashback_level == "50 Cash Back")   return(0.5) 
+# etc.
+# Admittedly, 50 Cash Back = 0.5 units depends on your model’s scale.
+
+########### 2. Helper to Update a Brand's Row with the Chosen Cashback ###########
+# You presumably have something like:
+update_cashback <- function(row, cb) {
+  # reset indicators
+  row["50 Cash Back"] <- 0
+  row["100 Cash Back"] <- 0
+  row["150 Cash Back"] <- 0
+  if (cb == "50 Cash Back") {
+    row["50 Cash Back"] <- 1
+  } else if (cb == "100 Cash Back") {
+    row["100 Cash Back"] <- 1
+  } else if (cb == "150 Cash Back") {
+    row["150 Cash Back"] <- 1
+  }
+  # 'No Cashback' => all zero.
+  return(row)
+}
+
+########### 3. Best-Response with Joint (Price, Cashback) for One Firm ###########
+# Each firm enumerates its discrete cashback options, 
+# then for each option, uses Brent's method to find the best price. 
+# It picks whichever (price, cb) yields the highest profit.
+
+best_response_BC_joint <- function(firm_index,
+                                   current_pricefull,
+                                   current_cb_choices,
+                                   betamix,
+                                   chset_noprice,
+                                   baseline_cost_vec,
+                                   discrete_cashback_options = c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back"),
+                                   lower = 1,
+                                   upper = 14) {
+  
+  best_profit <- -Inf
+  best_price <- NA
+  best_cb <- NA
+  
+  # For each candidate cashback option:
+  for (cb in discrete_cashback_options) {
+    
+    # define the objective function to pass to optim
+    profit_fun <- function(candidate_price) {
+      # Build a local copy of the price vector
+      local_pricefull <- current_pricefull
+      # brand i sets candidate_price
+      local_pricefull[firm_index] <- candidate_price
+      
+      # cost = baseline_cost + get_cashback_cost
+      # we modify brand i's cost specifically:
+      local_cost <- baseline_cost_vec
+      local_cost[firm_index] <- baseline_cost_vec[firm_index] + get_cashback_cost(cb)
+      
+      # We'll adapt your profitcalchelp to accept a brand's chosen cb:
+      # But it might be simpler to do the logic in-line:
+      # Construct a local design matrix with the chosen CB for brand i
+      # We'll do that in one step after optimization. 
+      
+      # For share, we need to combine local_pricefull with chset_noprice
+      # and also update the brand i's row with the chosen CB.
+      local_chset <- chset_noprice
+      local_chset[firm_index, ] <- update_cashback(local_chset[firm_index, ], cb)
+      design_full <- cbind(local_pricefull, local_chset)
+      
+      # compute market shares
+      share <- probabilities_BC_BLP_log_cpp(betamix, design_full, pr = 1)
+      # brand i's profit
+      brand_profit_i <- share[firm_index] * (local_pricefull[firm_index] - local_cost[firm_index])
+      
+      return(brand_profit_i)
+    }
+    
+    # initial guess
+    start_price <- current_pricefull[firm_index]
+    
+    # run Brent's method
+    res <- optim(
+      par = start_price,
+      fn = profit_fun,
+      method = "Brent",
+      lower = lower,
+      upper = upper,
+      control = list(fnscale = -1)  # maximize
+    )
+    
+    # Check the resulting profit
+    candidate_opt_price <- res$par
+    candidate_opt_profit <- res$value
+    
+    if (candidate_opt_profit > best_profit) {
+      best_profit <- candidate_opt_profit
+      best_price <- candidate_opt_price
+      best_cb <- cb
     }
   }
   
-  # Compute the choice probabilities using the standard logit formula.
-  if (all(is.infinite(u))) return(rep(0, length(u)))
-  exp_u <- exp(u - max(u, na.rm = TRUE))
-  probs <- exp_u / sum(exp_u)
-  return(probs)
+  # Return brand i's best (price, cb, profit).
+  return(list(price = best_price, cb = best_cb, profit = best_profit))
 }
 
+########### 4. Iterative Algorithm for Joint Price & Cashback Equilibrium ###########
+# We have 5 inside brands: Apple(1), Samsung(2), Huawei(3), Amazon(4), Asus(5).
+# Outside is row(6) with zero "price," not an optimizer.
 
-profit_focal <- function(cpr, competitor_prices, A, beta, cost, M) {
-  # p: candidate price for the focal brand (Samsung).
-  # competitor_prices: vector of prices for all alternatives (e.g., c(p_outside, p_apple, p_samsung, p_huawei, p_amazon, p_asus)).
-  # A: design matrix for alternatives (without the price column).
-  # beta: named parameter vector (from the BC model).
-  # cost: cost vector for all alternatives.
-  # M: market size.
+# Baseline price vector for the 6 rows:
+current_pricefull_joint <- c(8.99, 6.99, 3.99, 0.99, 2.99, 0)
+
+# Baseline cost for each brand (outside=0). 
+# This is the "no cashback" baseline cost. 
+# Then we add get_cashback_cost(...) for the brand's chosen CB.
+baseline_cost_vec <- c(4.50, 3.00, 1.70, 0.70, 2.00, 0)
+
+# Start iterative approach
+tolerance <- 0.1
+max_iter <- 20
+convergence <- FALSE
+iteration <- 1
+
+# We'll store (price, cb) for each brand. Let’s store CB in a separate vector:
+cb_choices <- rep("No Cashback", 6)  # row 1..5, row6=Outside?
+
+# For tracking iteration history:
+price_history_joint <- matrix(NA, nrow = max_iter, ncol = 5)
+cb_history_joint <- matrix(NA, nrow = max_iter, ncol = 5)
+colnames(price_history_joint) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus")
+colnames(cb_history_joint) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus")
+
+while (!convergence && iteration <= max_iter) {
   
-  prices <- competitor_prices
-  prices[3] <- cpr  # update Samsung's price (assuming Samsung is at index 3)
+  old_prices <- current_pricefull_joint
+  old_cb     <- cb_choices
   
-  # Compute predicted market shares using the BC probability function.
-  probs <- compute_prob_BC(prices, A, beta)
+  # For each brand i in 1..5:
+  for (i in 1:5) {
+    
+    # brand i picks best (price, cb)
+    res_br <- best_response_BC_joint(
+      firm_index = i,
+      current_pricefull = current_pricefull_joint,
+      current_cb_choices = cb_choices,
+      betamix = hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>0.9,],
+      chset_noprice = choiceset_BC_noprice,
+      baseline_cost_vec = baseline_cost_vec,
+      discrete_cashback_options = c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back"),
+      lower = 1, upper = 14
+    )
+    
+    # update brand i's chosen price & cb
+    current_pricefull_joint[i] <- res_br$price
+    cb_choices[i] <- res_br$cb
+  }
   
-  # Profit for Samsung: market share * (price - cost)
-  profit <- M * probs[3] * (cpr - cost[3])
-  return(profit)
+  # record iteration
+  price_history_joint[iteration, ] <- current_pricefull_joint[1:5]
+  cb_history_joint[iteration, ] <- cb_choices[1:5]
+  
+  # check if changes < tolerance
+  price_change <- max(abs(current_pricefull_joint[1:5] - old_prices[1:5]))
+  # if you want to consider CB changes as well, treat them as "any changed" => or define a small function that sets numeric code for each CB option
+  cb_changed <- any(cb_choices[1:5] != old_cb[1:5])
+  
+  cat(sprintf("Iteration %d, max price change= %.4f\n", iteration, price_change))
+  
+  if (price_change < tolerance && !cb_changed) {
+    convergence <- TRUE
+  }
+  
+  iteration <- iteration + 1
 }
 
-optimize_focal_price <- function(competitor_prices, A, beta, cost, M, lower = 0, upper = 20) {
-  profit_fun <- function(cpr) { profit_focal(cpr, competitor_prices, A, beta, cost, M) }
-  res <- optimize(profit_fun, interval = c(lower, upper), maximum = TRUE)
-  return(res)
+price_history_joint <- price_history_joint[1:(iteration-1), ]
+cb_history_joint    <- cb_history_joint[1:(iteration-1), ]
+
+cat("\nJoint Price & Cashback Equilibrium Found:\n")
+equilibrium_prices <- current_pricefull_joint
+names(equilibrium_prices) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus", "Outside")
+equilibrium_cb <- cb_choices
+names(equilibrium_cb) <- c("Apple", "Samsung", "Huawei", "Amazon", "Asus", "Outside")
+
+print(list(Prices = equilibrium_prices, Cashbacks = equilibrium_cb))
+
+# 5) Evaluate final equilibrium profits & shares for each inside brand
+final_outcome <- list()
+for (i in 1:5) {
+  # effective cost: baseline_cost_vec[i] + get_cashback_cost(equilibrium_cb[i])
+  local_cost <- baseline_cost_vec
+  local_cost[i] <- baseline_cost_vec[i] + get_cashback_cost(equilibrium_cb[i])
+  
+  # build design matrix
+  local_chset <- choiceset_BC_noprice
+  local_chset[i, ] <- update_cashback(local_chset[i, ], equilibrium_cb[i])
+  design_equil <- cbind(equilibrium_prices, local_chset)
+  
+  share_vec <- probabilities_BC_BLP_log_cpp(hilf_BC$betaexchange[runif(nrow(hilf_BC$betaexchange))>0.7, ],
+                                            design_equil, pr=1)
+  brand_profit <- share_vec[i] * (equilibrium_prices[i] - local_cost[i])
+  
+  final_outcome[[names(equilibrium_prices)[i]]] <- list(
+    Share  = share_vec[i],
+    Profit = brand_profit
+  )
 }
 
+cat("\nEquilibrium Market Shares and Profits:\n")
+print(final_outcome)
 
-
-# Example competitor prices (assumed order: Outside, Apple, Samsung, Huawei, Amazon, Asus)
-competitor_prices <- c(0, 7.99, 6.99, 3.99, 0.99, 2.99)
-
-# Construct design matrix A by removing the price column from choiceset_full.
-A <- choiceset_full[, -33]   # assumes price is the first column
-
-# Define the cost vector for alternatives.
-cost_vector <- c(0, 4.50, 4.50, 2.90, 0.70, 2.00)
-
-# Use an average beta vector from your BC model output.
-beta_mean_BC <- colMeans(hilf_BC$betaexchange)  # Ensure this is a named vector with appropriate names
-
-# Set market size:
-M <- 1000000
-
-# --- Compute the Price-Demand Curve for Samsung ---
-price_grid <- seq(0.99, 11.99, by = 0.25)
-demand <- numeric(length(price_grid))
-for (i in 1:length(price_grid)) {
-  competitor_prices[3] <- price_grid[i]
-  demand[i] <- compute_prob_BC(competitor_prices, A, beta_mean_BC)[3]
-}
-
+#### Optional: Plot Price Convergence Over Iterations ####
+# If you want to see how price evolves across iterations:
+library(reshape2)
 library(ggplot2)
-df_demand <- data.frame(Price = price_grid, Samsung_Share = demand)
-ggplot(df_demand, aes(x = Price, y = Samsung_Share)) +
-  geom_line(color = "blue", size = 1.2) +
-  labs(title = "Price-Demand Curve for Samsung (BC Model)",
-       x = "Price (Euros)",
-       y = "Predicted Market Share (Samsung)") +
+price_history_df <- as.data.frame(price_history_joint)
+price_history_df$Iteration <- 1:nrow(price_history_df)
+price_melt <- melt(price_history_df, id.vars = "Iteration", variable.name = "Firm", value.name = "Price")
+
+ggplot(price_melt, aes(x = Iteration, y = Price, color = Firm)) +
+  geom_line(linewidth=1.0) +
+  geom_point() +
+  labs(title = "Convergence of Prices (Joint Price+Cashback Nash Equilibrium)",
+       x = "Iteration",
+       y = "Price (Euros)") +
   theme_minimal()
 
-# --- Optimize Samsung's Price ---
-opt_result <- optimize_focal_price(competitor_prices, A, beta_mean_BC, cost_vector, M, lower = 0.99, upper = 20)
-cat("Optimal Price for Samsung (BC model):", opt_result$maximum, "\n")
-cat("Maximum Profit (per simulation):", opt_result$objective, "\n")
+# Also possible to track CB changes over time in cb_history_joint.
+
+
+# Load necessary libraries
+library(ggplot2)
+library(reshape2)
+
+# ---------------------------
+# Plot 1: Convergence of Price Decisions
+# ---------------------------
+# price_history_joint is a matrix (iterations x 5) with columns for Apple, Samsung, Huawei, Amazon, and Asus.
+price_history_df <- as.data.frame(price_history_joint)
+price_history_df$Iteration <- 1:nrow(price_history_df)
+price_melt <- melt(price_history_df, id.vars = "Iteration", 
+                   variable.name = "Firm", value.name = "Price")
+
+ggplot(price_melt, aes(x = Iteration, y = Price, color = Firm)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Convergence of Price Decisions",
+       x = "Iteration", y = "Price (EUR)") +
+  theme_minimal() +
+  theme(text = element_text(family = "Times New Roman", size = 12),
+        plot.title = element_text(hjust = 0.5))
+
+# ---------------------------
+# Plot 2: Convergence of Cashback Decisions
+# ---------------------------
+# cb_history_joint is a matrix (iterations x 5) of discrete cashback choices.
+# Convert these to a factor and then assign numeric codes for plotting.
+cb_history_df <- as.data.frame(cb_history_joint)
+cb_history_df$Iteration <- 1:nrow(cb_history_df)
+cb_melt <- melt(cb_history_df, id.vars = "Iteration", 
+                variable.name = "Firm", value.name = "Cashback")
+# Define the desired order for cashback options.
+cashback_levels <- c("No Cashback", "50 Cash Back", "100 Cash Back", "150 Cash Back")
+cb_melt$Cashback <- factor(cb_melt$Cashback, levels = cashback_levels)
+# Create a numeric version for plotting
+cb_melt$Cashback_num <- as.numeric(cb_melt$Cashback)
+
+ggplot(cb_melt, aes(x = Iteration, y = Cashback_num, color = Firm)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_y_continuous(breaks = 1:4, labels = cashback_levels) +
+  labs(title = "Convergence of Cashback Decisions",
+       x = "Iteration", y = "Cashback Level") +
+  theme_minimal() +
+  theme(text = element_text(family = "Times New Roman", size = 12),
+        plot.title = element_text(hjust = 0.5))
+
+
+# Load required packages
+library(reshape2)
+library(ggplot2)
+
+# Assume price_history_joint and cb_history_joint are matrices 
+# (iterations x 5) for the five inside brands (Apple, Samsung, Huawei, Amazon, Asus).
+
+# Convert price history to a data frame.
+price_df <- as.data.frame(price_history_joint)
+price_df$Iteration <- 1:nrow(price_df)
+price_melt <- melt(price_df, id.vars = "Iteration", 
+                   variable.name = "Brand", value.name = "Price")
+
+# Convert cashback history to a data frame.
+cb_df <- as.data.frame(cb_history_joint)
+cb_df$Iteration <- 1:nrow(cb_df)
+cb_melt <- melt(cb_df, id.vars = "Iteration", 
+                variable.name = "Brand", value.name = "Cashback")
+
+# Merge the two data frames by Iteration and Brand.
+combined_df <- merge(price_melt, cb_melt, by = c("Iteration", "Brand"))
+
+# Create the plot.
+ggplot(combined_df, aes(x = Iteration, y = Price, group = Brand, color = Brand)) +
+  geom_line(size = 1) +
+  geom_point(aes(shape = Cashback), size = 3) +
+  scale_shape_manual(values = c(16, 17, 15, 8),
+                     name = "Cashback Level") +
+  labs(title = "Convergence of Price and Cashback Decisions",
+       x = "Iteration",
+       y = "Price (EUR)") +
+  theme_minimal() +
+  theme(text = element_text(family = "Times New Roman", size = 12),
+        plot.title = element_text(hjust = 0.5))
+
+
+# Load required packages
+library(reshape2)
+library(ggplot2)
+
+# Assume price_history_joint and cb_history_joint are matrices 
+# (iterations x 5) for the five inside brands (Apple, Samsung, Huawei, Amazon, Asus).
+
+# Convert price history to a data frame.
+price_df <- as.data.frame(price_history_joint)
+price_df$Iteration <- 1:nrow(price_df)
+price_melt <- melt(price_df, id.vars = "Iteration", 
+                   variable.name = "Brand", value.name = "Price")
+
+# Convert cashback history to a data frame.
+cb_df <- as.data.frame(cb_history_joint)
+cb_df$Iteration <- 1:nrow(cb_df)
+cb_melt <- melt(cb_df, id.vars = "Iteration", 
+                variable.name = "Brand", value.name = "Cashback")
+
+# Merge the two data frames by Iteration and Brand.
+combined_df <- merge(price_melt, cb_melt, by = c("Iteration", "Brand"))
+
+# Create the APA-style plot.
+ggplot(combined_df, aes(x = Iteration, y = Price, group = Brand, color = Brand)) +
+  geom_line(size = 1.2) +  # Slightly thicker lines
+  geom_point(aes(shape = as.factor(Cashback)), size = 3) +  # Shape based on cashback
+  scale_shape_manual(values = c(16, 17, 15, 8), name = "Cashback Level") +
+  scale_color_manual(values = c("black", "darkgray", "dimgray", "gray", "lightgray")) +  # APA grayscale
+  labs(
+       x = "Iteration",
+       y = "Price (in 100 EUR)") +
+  theme_classic() +  # APA prefers simple, clean styles
+  theme(
+    text = element_text(family = "Times New Roman", size = 12),  # APA font
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Centered, bold title
+    axis.title = element_text(face = "bold", size = 12),  # Bold axis labels
+    axis.text = element_text(size = 11),  # Readable axis text
+    legend.title = element_text(face = "bold"),  # Bold legend title
+    legend.position = "right",  # Keep legend clear
+    panel.grid.major = element_line(color = "gray80", linetype = "dotted"),  # Subtle APA grid
+    panel.grid.minor = element_blank()  # No minor grid lines
+  )
+
+
+
+# Load required packages
+library(reshape2)
+library(ggplot2)
+
+# Assume price_history_joint and cb_history_joint are matrices 
+# (iterations x 5) for the five inside brands (Apple, Samsung, Huawei, Amazon, Asus).
+
+# Convert price history to a data frame.
+price_df <- as.data.frame(price_history_joint)
+price_df$Iteration <- 1:nrow(price_df)
+price_melt <- melt(price_df, id.vars = "Iteration", 
+                   variable.name = "Brand", value.name = "Price")
+
+# Convert cashback history to a data frame.
+cb_df <- as.data.frame(cb_history_joint)
+cb_df$Iteration <- 1:nrow(cb_df)
+cb_melt <- melt(cb_df, id.vars = "Iteration", 
+                variable.name = "Brand", value.name = "Cashback")
+
+# Merge the two data frames by Iteration and Brand.
+combined_df <- merge(price_melt, cb_melt, by = c("Iteration", "Brand"))
+
+# Create the APA-style plot.
+ggplot(combined_df, aes(x = Iteration, y = Price, group = Brand, color = Brand)) +
+  geom_line(size = 1.2) +  # Thicker lines
+  geom_point(aes(shape = as.factor(Cashback)), size = 3) +  # Shape based on cashback
+  scale_shape_manual(values = c(16, 17, 15, 8), name = "Cashback Level") +
+  scale_color_manual(values = c("black", "darkgray", "dimgray", "gray", "lightgray")) +  # APA grayscale
+  labs(title = "Convergence of Price and Cashback Decisions",
+       x = "Iteration",
+       y = "Price (EUR)") +
+  theme_classic() +  # APA prefers simple, clean styles
+  theme(
+    text = element_text(family = "Times New Roman", size = 12),  # APA font
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),  # Centered, bold title
+    axis.title = element_text(face = "bold", size = 12),  # Bold axis labels
+    axis.text = element_text(size = 11),  # Readable axis text
+    legend.title = element_text(face = "bold"),  # Bold legend title
+    legend.position = "bottom",  # Legend below
+    legend.box = "horizontal",  # Arrange legend horizontally
+    panel.grid.major = element_line(color = "gray80", linetype = "dotted"),  # Subtle APA grid
+    panel.grid.minor = element_blank()  # No minor grid lines
+  )
